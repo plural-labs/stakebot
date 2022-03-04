@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/cmwaters/autostaker/server"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"github.com/cosmos/go-bip39"
 	"github.com/spf13/cobra"
@@ -15,6 +16,7 @@ const (
 	keyName = "autostaker"
 	keySigningAlgorithm = "secp256k1"
 	defaultDir = ".autostaker"
+	defaultConfigFileName = "config.toml"
 )
 
 func init() {
@@ -89,11 +91,11 @@ func initAccount() (keyring.Info, string, error) {
 }
 
 func initConfig() error {
-	config := DefaultConfig()
+	config := server.DefaultConfig()
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
 		return err
 	}
-	filePath := filepath.Join(homeDir, defaultDir, "config.toml")
+	filePath := filepath.Join(homeDir, defaultDir, defaultConfigFileName)
 	return config.Save(filePath)
 }

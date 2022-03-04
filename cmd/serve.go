@@ -1,7 +1,12 @@
 package cmd
 
 import (
+	"os"
+	"path/filepath"
+
 	"github.com/spf13/cobra"
+
+	"github.com/cmwaters/autostaker/server"
 )
 
 func init() {
@@ -12,17 +17,16 @@ var serveCmd = &cobra.Command{
 	Use: "serve",
 	Short: "Run the autostaker server",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		keyInfo, mnemonic, err := initAccount()
+		homeDir, err := os.UserHomeDir()
+		if err != nil {
+			return err
+		}
+		filePath := filepath.Join(homeDir, defaultDir, defaultConfigFileName)
+		config, err := server.LoadConfig(filePath)
 		if err != nil {
 			return err
 		}
 
-		cmd.Printf(`
-Generated an account: %d
-Pubkey: %X
-Mnemonic: %v
-Write this mnemonic phrase in a safe place
-		`, keyInfo.GetAddress().String(), keyInfo.GetPubKey().Bytes(), mnemonic)
-		return initConfig()
+		return server.Serve(config)
 	},
 }
