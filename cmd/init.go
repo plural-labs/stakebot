@@ -7,7 +7,7 @@ import (
 
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"github.com/cosmos/go-bip39"
-	"github.com/plural-labs/autostaker/server"
+	"github.com/plural-labs/autostaker/types"
 	"github.com/spf13/cobra"
 )
 
@@ -37,8 +37,9 @@ var initCmd = &cobra.Command{
 Generated a new private key for the autostaker server
 Pubkey: %X
 Mnemonic: %v
+
 Write this mnemonic phrase in a safe place
-		`, keyInfo.GetPubKey().Bytes(), mnemonic)
+`, keyInfo.GetPubKey().Bytes(), mnemonic)
 		return initConfig()
 	},
 }
@@ -88,7 +89,7 @@ func initAccount() (keyring.Info, string, error) {
 }
 
 func initConfig() error {
-	config := server.DefaultConfig()
+	config := types.DefaultConfig()
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
 		return err

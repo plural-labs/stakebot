@@ -8,12 +8,12 @@ import (
 )
 
 type Config struct {
-	Chains     []Chain
-	ListenAddr string
+	// Chains     []Chain
+	ListenAddr string `toml:"listen_addr"`
 }
 
 func DefaultConfig() Config {
-	return Config{Chains: make([]Chain, 0), ListenAddr: "http://localhost:8080"}
+	return Config{ListenAddr: "localhost:8000"}
 }
 
 func (cfg Config) Save(file string) error {
@@ -25,8 +25,8 @@ func (cfg Config) Save(file string) error {
 }
 
 func LoadConfig(file string) (Config, error) {
-	config := Config{}
-	_, err := toml.Decode(file, &config)
+	var config Config
+	_, err := toml.DecodeFile(file, &config)
 	if err != nil {
 		return config, fmt.Errorf("failed to load config from %q: %w", file, err)
 	}

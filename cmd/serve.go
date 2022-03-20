@@ -7,6 +7,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/plural-labs/autostaker/server"
+	"github.com/plural-labs/autostaker/types"
 )
 
 func init() {
@@ -22,7 +23,7 @@ var serveCmd = &cobra.Command{
 			return err
 		}
 		filePath := filepath.Join(homeDir, defaultDir, defaultConfigFileName)
-		config, err := server.LoadConfig(filePath)
+		config, err := types.LoadConfig(filePath)
 		if err != nil {
 			return err
 		}
