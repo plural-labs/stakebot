@@ -4,8 +4,8 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/plural-labs/autostaker/router/v1"
 	"github.com/gorilla/mux"
-	"github.com/cmwaters/autostaker/router/v1"
 )
 
 func Serve(config Config) error {
@@ -14,10 +14,10 @@ func Serve(config Config) error {
 	v1.RegisterRoutes(router)
 
 	server := &http.Server{
-		Handler: router,
-		Addr: config.ListenAddr,
+		Handler:      router,
+		Addr:         config.ListenAddr,
 		WriteTimeout: 10 * time.Second,
-		ReadTimeout: 10 * time.Second,
+		ReadTimeout:  10 * time.Second,
 	}
 
 	return server.ListenAndServe()

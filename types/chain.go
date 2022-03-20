@@ -1,21 +1,19 @@
-package server
+package types
 
 import (
 	"fmt"
 	"os"
 
 	"github.com/BurntSushi/toml"
-
-	"github.com/plural-labs/autostaker/types"
 )
 
 type Config struct {
-	Chains     []types.Chain
+	Chains     []Chain
 	ListenAddr string
 }
 
 func DefaultConfig() Config {
-	return Config{Chains: make([]types.Chain, 0), ListenAddr: "http://localhost:8080"}
+	return Config{Chains: make([]Chain, 0), ListenAddr: "http://localhost:8080"}
 }
 
 func (cfg Config) Save(file string) error {
@@ -33,4 +31,11 @@ func LoadConfig(file string) (Config, error) {
 		return config, fmt.Errorf("failed to load config from %q: %w", file, err)
 	}
 	return config, nil
+}
+
+type Chain struct {
+	RPC       string `toml:"rpc"`
+	REST      string `toml:"rest"`
+	ChainId   string `toml:"chain_id"`
+	ChainName string `toml:"chain_name"`
 }

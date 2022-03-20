@@ -8,7 +8,7 @@ import (
 )
 
 var rootCmd = &cobra.Command{
-	Use: "autostaker",
+	Use:   "autostaker",
 	Short: "Autostaker is a server for automagically claiming and delegating stake",
 }
 

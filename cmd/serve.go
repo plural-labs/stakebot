@@ -6,7 +6,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/cmwaters/autostaker/server"
+	"github.com/plural-labs/autostaker/server"
 )
 
 func init() {
@@ -14,7 +14,7 @@ func init() {
 }
 
 var serveCmd = &cobra.Command{
-	Use: "serve",
+	Use:   "serve",
 	Short: "Run the autostaker server",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		homeDir, err := os.UserHomeDir()

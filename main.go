@@ -1,6 +1,6 @@
 package main
 
-import "github.com/cmwaters/autostaker/cmd"
+import "github.com/plural-labs/autostaker/cmd"
 
 func main() {
 	cmd.Execute()

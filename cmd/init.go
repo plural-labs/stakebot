@@ -5,17 +5,17 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/cmwaters/autostaker/server"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"github.com/cosmos/go-bip39"
+	"github.com/plural-labs/autostaker/server"
 	"github.com/spf13/cobra"
 )
 
 const (
-	mnemonicEntropySize = 256
-	keyName = "autostaker"
-	keySigningAlgorithm = "secp256k1"
-	defaultDir = ".autostaker"
+	mnemonicEntropySize   = 256
+	keyName               = "autostaker"
+	keySigningAlgorithm   = "secp256k1"
+	defaultDir            = ".autostaker"
 	defaultConfigFileName = "config.toml"
 )
 
@@ -24,9 +24,9 @@ func init() {
 }
 
 var initCmd = &cobra.Command{
-	Use: "init",
+	Use:   "init",
 	Short: "Initialize an instance of the autostaker",
-	Long: "Creates a config, keys and a database needed to run the server",
+	Long:  "Creates a config, keys and a database needed to run the server",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		keyInfo, mnemonic, err := initAccount()
 		if err != nil {
@@ -34,11 +34,11 @@ var initCmd = &cobra.Command{
 		}
 
 		cmd.Printf(`
-Generated an account: %d
+Generated a new private key for the autostaker server
 Pubkey: %X
 Mnemonic: %v
 Write this mnemonic phrase in a safe place
-		`, keyInfo.GetAddress().String(), keyInfo.GetPubKey().Bytes(), mnemonic)
+		`, keyInfo.GetPubKey().Bytes(), mnemonic)
 		return initConfig()
 	},
 }
@@ -62,11 +62,8 @@ func initAccount() (keyring.Info, string, error) {
 
 	// Check to see if the account already exists
 	info, err := kb.Key(keyName)
-	if err != nil {
-		return nil, "", err
-	}
 	if info != nil {
-		return nil, "", errors.New("account already initialized") 
+		return nil, "", errors.New("account already initialized")
 	}
 
 	keyringAlgos, _ := kb.SupportedAlgorithms()
