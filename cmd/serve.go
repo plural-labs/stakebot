@@ -28,6 +28,6 @@ var serveCmd = &cobra.Command{
 			return err
 		}
 
-		return server.Serve(config)
+		return server.Serve(config, filepath.Join(homeDir, defaultDir))
 	},
 }

@@ -8,7 +8,7 @@ import (
 )
 
 type Config struct {
-	// Chains     []Chain
+	Chains     []Chain
 	ListenAddr string `toml:"listen_addr"`
 }
 
@@ -38,4 +38,6 @@ type Chain struct {
 	REST      string `toml:"rest"`
 	ChainId   string `toml:"chain_id"`
 	ChainName string `toml:"chain_name"`
+	DefaultInterval uint64 `toml:"default_interval"`
+	DefaultTolerance uint64 `toml:"default_tolerance"`
 }
