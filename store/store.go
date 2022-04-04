@@ -70,6 +70,31 @@ func (s Store) Get(address string) (*types.Record, error) {
 	return record, nil
 }
 
+func (s Store) GetAll() ([]*types.Record, error) {
+	records := make([]*types.Record, 0)
+	err := s.db.View(func(txn *badger.Txn) error {
+		opts := badger.DefaultIteratorOptions
+		it := txn.NewIterator(opts)
+		defer it.Close()
+		for it.Seek([]byte{addressPrefix}); it.ValidForPrefix([]byte{addressPrefix}); it.Next() {
+			var record *types.Record
+			item := it.Item()
+			err := item.Value(func(v []byte) error {
+				if err := proto.Unmarshal(v, record); err != nil {
+					return err
+				}
+				records = append(records, record)
+				return nil
+			})
+			if err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+	return records, err
+}
+
 func (s Store) Close() error {
 	return s.db.Close()
 }

@@ -31,8 +31,24 @@ func Serve(config types.Config, homeDir string) error {
 		ReadTimeout:  10 * time.Second,
 	}
 
-
+	records, err := store.GetAll()
+	if err != nil {
+		return err
+	}
+	for _, record := range records {
+		id, err := c.AddFunc(record.Frequency, RestakeJob(record))
+		if err != nil {
+			return err
+		}
+		record.Id = int64(id)
+	}
 
 	fmt.Printf("Running server at %s...\n", config.ListenAddr)
 	return server.ListenAndServe()
+}
+
+func RestakeJob(record *types.Record) func() {
+	return func() {
+		
+	}
 }
