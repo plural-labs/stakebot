@@ -13,9 +13,9 @@ import (
 	staking "github.com/cosmos/cosmos-sdk/x/staking/types"
 )
 
-// Restake queries an addresses, delegations. It executes a claim call on all delegations. It then calculates
-// a users liquid balance in the staking token. It divides the balance proportionally to the delegated validators
-// and bundles together delegate msgs to effectively restake all available tokens greater than a specified tolerance.
+// Restake queries an addresses' delegations. It executes a claim call on all delegations. It then calculates
+// a users liquid balance in the staking denom. It divides the balance proportionally to the delegated validators
+// and bundles together delegate msgs to effectively restake all available tokens above the specified tolerance.
 // This is a blocking function.
 func Restake(ctx context.Context, grpc *grpc.ClientConn, address, authority string, tolerance int64) error {
 	authzClient := authz.NewMsgClient(grpc)
@@ -50,7 +50,10 @@ func Restake(ctx context.Context, grpc *grpc.ClientConn, address, authority stri
 
 	bankClient := bank.NewQueryClient(grpc)
 	resp, err := bankClient.Balance(ctx, &bank.QueryBalanceRequest{Address: address, Denom: stakeDenom})
-	
+	if err != nil {
+		return err
+	}
+
 	stakableBalance := resp.Balance.Amount.Int64() - tolerance
 	if stakableBalance <= 0 {
 		return nil
@@ -62,9 +65,9 @@ func Restake(ctx context.Context, grpc *grpc.ClientConn, address, authority stri
 		delegateMsg := &staking.MsgDelegate{
 			DelegatorAddress: address,
 			ValidatorAddress: delegation.Delegation.ValidatorAddress,
-			Amount: types.NewInt64Coin(stakeDenom, amount), 
+			Amount:           types.NewInt64Coin(stakeDenom, amount),
 		}
-		
+
 		anyMsg, err := codec.NewAnyWithValue(delegateMsg)
 		if err != nil {
 			return err

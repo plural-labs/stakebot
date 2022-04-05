@@ -34,10 +34,9 @@ func LoadConfig(file string) (Config, error) {
 }
 
 type Chain struct {
-	RPC       string `toml:"rpc"`
-	REST      string `toml:"rest"`
-	ChainId   string `toml:"chain_id"`
-	ChainName string `toml:"chain_name"`
-	DefaultInterval uint64 `toml:"default_interval"`
+	GRPC             string `toml:"grpc"`
+	ChainId          string `toml:"chain_id"`
+	ChainName        string `toml:"chain_name"`
+	DefaultInterval  uint64 `toml:"default_interval"`
 	DefaultTolerance uint64 `toml:"default_tolerance"`
 }

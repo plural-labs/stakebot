@@ -29,7 +29,6 @@ func (h Handler) ChainsHandler(res http.ResponseWriter, req *http.Request) {
 
 }
 
-
 // RespondWithJSON provides an auxiliary function to return an HTTP response
 // with JSON content and an HTTP status code.
 func RespondWithJSON(w http.ResponseWriter, code int, payload interface{}) {

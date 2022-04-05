@@ -4,6 +4,12 @@ option go_package = "github.com/plural-labs/autostaker/types";
 message Record {
     int64 id = 1;
     string address = 2;
-    string frequency = 3;
+    Freuency frequency = 3;
     string tolerance = 4;
+}
+
+enum Frequency {
+    DAILY = 1;
+    WEEKLY = 2;
+    MONTHLY = 3;
 }

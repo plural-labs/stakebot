@@ -1,10 +1,11 @@
 package router
+
 import (
 	"github.com/gorilla/mux"
 	cron "github.com/robfig/cron/v3"
 
-	"github.com/plural-labs/autostaker/store"
 	"github.com/plural-labs/autostaker/router/v1"
+	"github.com/plural-labs/autostaker/store"
 )
 
 func RegisterRoutes(router *mux.Router, store *store.Store, cron *cron.Cron) {

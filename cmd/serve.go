@@ -2,11 +2,13 @@ package cmd
 
 import (
 	"os"
+	"os/signal"
 	"path/filepath"
+	"syscall"
 
 	"github.com/spf13/cobra"
 
-	"github.com/plural-labs/autostaker/server"
+	"github.com/plural-labs/autostaker/bot"
 	"github.com/plural-labs/autostaker/types"
 )
 
@@ -28,6 +30,21 @@ var serveCmd = &cobra.Command{
 			return err
 		}
 
-		return server.Serve(config, filepath.Join(homeDir, defaultDir))
+		stakingBot, err := bot.New(config, filepath.Join(homeDir, defaultDir))
+		if err != nil {
+			return err
+		}
+
+		ctx, cancel := signal.NotifyContext(cmd.Context(), syscall.SIGTERM)
+		defer cancel()
+
+		err = stakingBot.Start(ctx)
+		if err != nil {
+			return err
+		}
+
+		<-ctx.Done()
+
+		return nil
 	},
 }

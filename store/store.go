@@ -11,18 +11,19 @@ import (
 	"github.com/plural-labs/autostaker/types"
 )
 
-const defaultStoreName = "store.db"
+const (
+	defaultStoreName = "store.db"
 
-const addressPrefix = byte(0x00)
+	dailyPrefix   = byte(0x00)
+	weeklyPrefix  = byte(0x01)
+	monthlyPrefix = byte(0x02)
+)
 
 type Store struct {
 	db *badger.DB
-
-	// immutable
-	chains []types.Chain
 }
 
-func New(dir string, chains []types.Chain) (*Store, error) {
+func New(dir string) (*Store, error) {
 	path := filepath.Join(dir, defaultStoreName)
 	db, err := badger.Open(badger.DefaultOptions(path))
 	if err != nil {
@@ -30,7 +31,6 @@ func New(dir string, chains []types.Chain) (*Store, error) {
 	}
 	return &Store{
 		db: db,
-		chains: chains,
 	}, nil
 }
 
@@ -45,7 +45,7 @@ func (s Store) Set(record *types.Record) error {
 			return err
 		}
 		return txn.Set(k, bz)
-	})	
+	})
 }
 
 func (s Store) Get(address string) (*types.Record, error) {
@@ -59,7 +59,7 @@ func (s Store) Get(address string) (*types.Record, error) {
 		if err != nil {
 			return err
 		}
-		item.Value(func (val []byte) error {
+		item.Value(func(val []byte) error {
 			return proto.Unmarshal(val, record)
 		})
 		return nil
@@ -76,7 +76,7 @@ func (s Store) GetAll() ([]*types.Record, error) {
 		opts := badger.DefaultIteratorOptions
 		it := txn.NewIterator(opts)
 		defer it.Close()
-		for it.Seek([]byte{addressPrefix}); it.ValidForPrefix([]byte{addressPrefix}); it.Next() {
+		for it.Rewind(); it.Valid(); it.Next() {
 			var record *types.Record
 			item := it.Item()
 			err := item.Value(func(v []byte) error {
@@ -104,5 +104,5 @@ func key(address string) ([]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("unable to parse address: %w", err)
 	}
-	return append([]byte{addressPrefix}, a...), nil
+	return a, nil
 }
