@@ -28,6 +28,7 @@ var initCmd = &cobra.Command{
 	Short: "Initialize an instance of the autostaker",
 	Long:  "Creates a config, keys and a database needed to run the server",
 	RunE: func(cmd *cobra.Command, args []string) error {
+		cmd.Printf("Initializing autostaker account.\n")
 		keyInfo, mnemonic, err := initAccount()
 		if err != nil {
 			return err
@@ -50,7 +51,7 @@ func getKeyring() (keyring.Keyring, error) {
 		return nil, err
 	}
 	filePath := filepath.Join(homeDir, defaultDir)
-	kb, err := keyring.New(keyName, keyring.BackendFile, filePath, os.Stdin)
+	kb, err := keyring.New(keyName, keyring.BackendOS, filePath, os.Stdin)
 	if err != nil {
 		return nil, err
 	}
