@@ -6,6 +6,7 @@ import (
 	badger "github.com/dgraph-io/badger/v3"
 	"github.com/google/orderedcode"
 	"google.golang.org/protobuf/proto"
+	"github.com/rs/zerolog/log"
 
 	"github.com/plural-labs/autostaker/types"
 )
@@ -80,6 +81,11 @@ func (s Store) DeleteAllJobs() error {
 }
 
 func (s Store) SetRecord(record *types.Record) error {
+	// if the address exists elsewhere we remove it
+	err := s.DeleteRecord(record.Address)
+	if err != nil {
+		return err
+	}
 	return s.db.Update(func(txn *badger.Txn) error {
 		bz, err := proto.Marshal(record)
 		if err != nil {
@@ -102,6 +108,9 @@ func (s Store) GetRecord(address string) (*types.Record, error) {
 			if err != nil && err != badger.ErrKeyNotFound {
 				return err
 			}
+			if item != nil {
+				break
+			}
 		}
 		// unable to find the address at any frequency
 		if err != nil {
@@ -109,15 +118,27 @@ func (s Store) GetRecord(address string) (*types.Record, error) {
 		}
 
 		// unmarshal value
-		item.Value(func(val []byte) error {
+		return item.Value(func(val []byte) error {
 			return proto.Unmarshal(val, record)
 		})
-		return nil
 	})
 	if err != nil {
 		return nil, err
 	}
 	return record, nil
+}
+
+func (s Store) DeleteRecord(address string) error {
+	return s.db.Update(func(txn *badger.Txn) error {
+		for frequency := int32(1); frequency <= 4; frequency++ {
+			err := txn.Delete(key(frequency, address))
+			if err != nil {
+				return err
+			}
+			log.Info().Str("address", address).Msg("deleted record")
+		}
+		return nil
+	})
 }
 
 func (s Store) GetRecordsByFrequency(frequency int32) ([]*types.Record, error) {
@@ -126,12 +147,12 @@ func (s Store) GetRecordsByFrequency(frequency int32) ([]*types.Record, error) {
 		opts := badger.DefaultIteratorOptions
 		it := txn.NewIterator(opts)
 		defer it.Close()
-		prefix, err := orderedcode.Append(nil, frequency)
+		prefix, err := orderedcode.Append([]byte{addressPrefix}, int64(frequency))
 		if err != nil {
 			panic(err)
 		}
-		for it.Seek(prefix); it.Valid(); it.Next() {
-			var record *types.Record
+		for it.Seek(prefix); it.ValidForPrefix(prefix); it.Next() {
+			record := new(types.Record)
 			item := it.Item()
 			err := item.Value(func(v []byte) error {
 				if err := proto.Unmarshal(v, record); err != nil {
