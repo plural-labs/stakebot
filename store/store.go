@@ -5,8 +5,8 @@ import (
 
 	badger "github.com/dgraph-io/badger/v3"
 	"github.com/google/orderedcode"
-	"google.golang.org/protobuf/proto"
 	"github.com/rs/zerolog/log"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/plural-labs/autostaker/types"
 )

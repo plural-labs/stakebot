@@ -14,7 +14,7 @@ func TestRecords(t *testing.T) {
 	require.NoError(t, err)
 
 	record := &types.Record{
-		Address: "address1",
+		Address:   "address1",
 		Frequency: types.Frequency_DAILY,
 		Tolerance: 1000,
 	}
@@ -28,7 +28,7 @@ func TestRecords(t *testing.T) {
 	require.Equal(t, record.Address, out.Address)
 
 	require.NoError(t, db.SetRecord(&types.Record{
-		Address: "address2",
+		Address:   "address2",
 		Frequency: types.Frequency_DAILY,
 		Tolerance: 5000,
 	}))
@@ -60,7 +60,7 @@ func TestJobs(t *testing.T) {
 	db, err := store.New(t.TempDir())
 	require.NoError(t, err)
 	job := &types.Job{
-		Id: 1,
+		Id:        1,
 		Frequency: types.Frequency_DAILY,
 	}
 	_, err = db.GetJob(int32(types.Frequency_DAILY))

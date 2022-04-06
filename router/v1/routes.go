@@ -5,23 +5,23 @@ import (
 	"net/http"
 
 	"github.com/gorilla/mux"
-	cron "github.com/robfig/cron/v3"
 
 	"github.com/plural-labs/autostaker/store"
+	"github.com/plural-labs/autostaker/types"
 )
 
-func RegisterRoutes(router *mux.Router, store *store.Store, cron *cron.Cron) {
-	h := &Handler{}
+func RegisterRoutes(router *mux.Router, store *store.Store, chains []types.Chain) {
+	h := &Handler{store: store, chains: chains}
 	router.HandleFunc("/status/{address}", h.StatusHandler).Methods("GET")
 	router.HandleFunc("/chains", h.ChainsHandler).Methods("GET")
 }
 
 type Handler struct {
-	store store.Store
+	store *store.Store
+	chains []types.Chain
 }
 
 func (h Handler) StatusHandler(res http.ResponseWriter, req *http.Request) {
-
 	res.WriteHeader(http.StatusOK)
 }
 

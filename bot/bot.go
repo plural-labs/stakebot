@@ -36,15 +36,14 @@ func New(config types.Config, homeDir string, key keyring.Keyring) (*AutoStakeBo
 	}
 
 	r := mux.NewRouter()
-	c := cron.New()
-	router.RegisterRoutes(r, store, c)
+	router.RegisterRoutes(r, store, config.Chains)
 
 	keys, err := key.List()
 	if err != nil {
 		return nil, err
 	}
 	if len(keys) != 1 {
-		return nil, fmt.Errorf("expected 1 key got %d", len(keys))
+		return nil, fmt.Errorf("expected 1 key, got %d", len(keys))
 	}
 	address := keys[0].GetAddress().String()
 
@@ -57,7 +56,7 @@ func New(config types.Config, homeDir string, key keyring.Keyring) (*AutoStakeBo
 			WriteTimeout: 10 * time.Second,
 			ReadTimeout:  10 * time.Second,
 		},
-		cron:    c,
+		cron:    cron.New(),
 		key:     key,
 		address: address,
 	}, nil
@@ -76,7 +75,7 @@ func (bot AutoStakeBot) Start(ctx context.Context) error {
 		err := bot.server.ListenAndServe()
 		if err != nil && err != http.ErrServerClosed {
 			log.Error().Err(err).Msg("HTTP server")
-		} 
+		}
 	}()
 
 	select {
