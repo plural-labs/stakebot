@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"strings"
 	"time"
 
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
@@ -35,9 +34,6 @@ func New(config types.Config, homeDir string, key keyring.Keyring) (*AutoStakeBo
 		return nil, err
 	}
 
-	r := mux.NewRouter()
-	router.RegisterRoutes(r, store, config.Chains)
-
 	keys, err := key.List()
 	if err != nil {
 		return nil, err
@@ -46,6 +42,9 @@ func New(config types.Config, homeDir string, key keyring.Keyring) (*AutoStakeBo
 		return nil, fmt.Errorf("expected 1 key, got %d", len(keys))
 	}
 	address := keys[0].GetAddress().String()
+
+	r := mux.NewRouter()
+	router.RegisterRoutes(r, store, config.Chains, address)
 
 	return &AutoStakeBot{
 		config: config,
@@ -173,10 +172,5 @@ func (bot AutoStakeBot) StopJobs() error {
 }
 
 func (bot AutoStakeBot) findChain(address string) (types.Chain, error) {
-	for _, chain := range bot.config.Chains {
-		if strings.HasPrefix(address, chain.Prefix) {
-			return chain, nil
-		}
-	}
-	return types.Chain{}, fmt.Errorf("no chain found for address %s", address)
+	return types.FindChainFromAddress(bot.config.Chains, address)
 }

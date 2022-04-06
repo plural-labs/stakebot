@@ -3,6 +3,7 @@ package types
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/BurntSushi/toml"
 )
@@ -13,7 +14,19 @@ type Config struct {
 }
 
 func DefaultConfig() Config {
-	return Config{ListenAddr: "localhost:8000"}
+	return Config{ListenAddr: "localhost:8000", Chains: DefaultChains()}
+}
+
+func DefaultChains() []Chain {
+	return []Chain{
+		{
+			GRPC:             "localhost:9090",
+			Id:               "cosmoshub-4",
+			Prefix:           "cosmos",
+			DefaultFrequency: int32(Frequency_DAILY),
+			DefaultTolerance: 1000000,
+		},
+	}
 }
 
 func (cfg Config) Save(file string) error {
@@ -39,4 +52,13 @@ type Chain struct {
 	Prefix           string `toml:"chain_prefix"`
 	DefaultFrequency int32  `toml:"default_interval"`
 	DefaultTolerance int64  `toml:"default_tolerance"`
+}
+
+func FindChainFromAddress(chains []Chain, address string) (Chain, error) {
+	for _, chain := range chains {
+		if strings.HasPrefix(address, chain.Prefix) {
+			return chain, nil
+		}
+	}
+	return Chain{}, fmt.Errorf("no chain found for address %s", address)
 }

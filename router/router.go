@@ -8,7 +8,7 @@ import (
 	"github.com/plural-labs/autostaker/types"
 )
 
-func RegisterRoutes(router *mux.Router, store *store.Store, chains []types.Chain) {
+func RegisterRoutes(router *mux.Router, store *store.Store, chains []types.Chain, address string) {
 	r := router.PathPrefix("/v1").Subrouter()
-	v1.RegisterRoutes(r, store, chains)
+	v1.RegisterRoutes(r, store, chains, address)
 }
