@@ -72,12 +72,11 @@ func (bot AutoStakeBot) Start(ctx context.Context) error {
 	}
 
 	go func() {
+		log.Info().Str("ListenAddress", bot.config.ListenAddr).Msg("Starting server...")
 		err := bot.server.ListenAndServe()
-		if err != http.ErrServerClosed {
-			log.Error().Err(err).Msg("Starting server")
-		} else {
-			log.Info().Str("ListenAddress", bot.config.ListenAddr).Msg("Starting server")
-		}
+		if err != nil && err != http.ErrServerClosed {
+			log.Error().Err(err).Msg("HTTP server")
+		} 
 	}()
 
 	select {
@@ -149,6 +148,8 @@ func (bot AutoStakeBot) StartJobs() error {
 		if err != nil {
 			return err
 		}
+
+		log.Info().Str("frequency", types.Frequency_name[frequency]).Msg("Scheduled cron job")
 		// persist the job to disk
 		bot.store.SetJob(&types.Job{
 			Id:        int64(id),
@@ -159,6 +160,7 @@ func (bot AutoStakeBot) StartJobs() error {
 
 	// start up the scheduler
 	bot.cron.Start()
+	log.Info().Msg("Started cron scheduler")
 	return nil
 }
 

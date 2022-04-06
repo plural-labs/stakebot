@@ -43,7 +43,7 @@ func (s Store) SetJob(job *types.Job) error {
 }
 
 func (s Store) GetJob(frequency int32) (*types.Job, error) {
-	var job *types.Job
+	job := new(types.Job)
 	err := s.db.View(func(txn *badger.Txn) error {
 		item, err := txn.Get(jobKey(frequency))
 		if err != nil {
@@ -51,10 +51,9 @@ func (s Store) GetJob(frequency int32) (*types.Job, error) {
 		}
 
 		// unmarshal value
-		item.Value(func(val []byte) error {
+		return item.Value(func(val []byte) error {
 			return proto.Unmarshal(val, job)
 		})
-		return nil
 	})
 	if err != nil {
 		return nil, err
@@ -63,7 +62,7 @@ func (s Store) GetJob(frequency int32) (*types.Job, error) {
 }
 
 func (s Store) DeleteAllJobs() error {
-	return s.db.View(func(txn *badger.Txn) error {
+	return s.db.Update(func(txn *badger.Txn) error {
 		opts := badger.DefaultIteratorOptions
 		it := txn.NewIterator(opts)
 		defer it.Close()
@@ -91,7 +90,7 @@ func (s Store) SetRecord(record *types.Record) error {
 }
 
 func (s Store) GetRecord(address string) (*types.Record, error) {
-	var record *types.Record
+	record := new(types.Record)
 	err := s.db.View(func(txn *badger.Txn) error {
 		var (
 			item *badger.Item
@@ -155,7 +154,7 @@ func (s Store) Close() error {
 }
 
 func key(frequency int32, address string) []byte {
-	key, err := orderedcode.Append([]byte{addressPrefix}, frequency, address)
+	key, err := orderedcode.Append([]byte{addressPrefix}, int64(frequency), address)
 	if err != nil {
 		panic(err)
 	}
@@ -163,7 +162,7 @@ func key(frequency int32, address string) []byte {
 }
 
 func jobKey(frequency int32) []byte {
-	key, err := orderedcode.Append([]byte{cronJobs}, frequency)
+	key, err := orderedcode.Append([]byte{cronJobs}, int64(frequency))
 	if err != nil {
 		panic(err)
 	}
