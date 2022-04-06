@@ -14,6 +14,7 @@ func RegisterRoutes(router *mux.Router, store *store.Store, chains []types.Chain
 	h := &Handler{store: store, chains: chains}
 	router.HandleFunc("/status/{address}", h.StatusHandler).Methods("GET")
 	router.HandleFunc("/chains", h.ChainsHandler).Methods("GET")
+	router.HandleFunc("/chains/{id}", h.ChainByIdHandler).Methods("GET")
 }
 
 type Handler struct {
@@ -27,6 +28,16 @@ func (h Handler) StatusHandler(res http.ResponseWriter, req *http.Request) {
 
 func (h Handler) ChainsHandler(res http.ResponseWriter, req *http.Request) {
 	RespondWithJSON(res, http.StatusOK, h.chains)
+}
+
+func (h Handler) ChainByIdHandler(res http.ResponseWriter, req *http.Request) {
+	for _, chain := range h.chains {
+		if chain.Id == req.URL.Query()["id"][0] {
+			RespondWithJSON(res, http.StatusOK, chain)
+			return
+		}
+	}
+	res.WriteHeader(http.StatusNotFound)
 }
 
 // RespondWithJSON provides an auxiliary function to return an HTTP response

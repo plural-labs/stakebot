@@ -112,9 +112,9 @@ func ValidateAddress(ctx context.Context, conn *grpc.ClientConn, address, author
 
 	authzClient := authz.NewQueryClient(conn)
 	grantsResp, err := authzClient.Grants(ctx, &authz.QueryGrantsRequest{
-		Granter: address,
-		Grantee: authority,
-		MsgTypeUrl: types.MsgTypeURL(&staking.MsgDelegate{}), 
+		Granter:    address,
+		Grantee:    authority,
+		MsgTypeUrl: types.MsgTypeURL(&staking.MsgDelegate{}),
 	})
 	if err != nil {
 		return false, err
@@ -124,8 +124,8 @@ func ValidateAddress(ctx context.Context, conn *grpc.ClientConn, address, author
 	}
 
 	grantsResp, err = authzClient.Grants(ctx, &authz.QueryGrantsRequest{
-		Granter: address,
-		Grantee: authority,
+		Granter:    address,
+		Grantee:    authority,
 		MsgTypeUrl: types.MsgTypeURL(&distribution.MsgWithdrawDelegatorReward{}),
 	})
 	if err != nil {
