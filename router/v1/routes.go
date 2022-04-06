@@ -17,7 +17,7 @@ func RegisterRoutes(router *mux.Router, store *store.Store, chains []types.Chain
 }
 
 type Handler struct {
-	store *store.Store
+	store  *store.Store
 	chains []types.Chain
 }
 
@@ -26,7 +26,7 @@ func (h Handler) StatusHandler(res http.ResponseWriter, req *http.Request) {
 }
 
 func (h Handler) ChainsHandler(res http.ResponseWriter, req *http.Request) {
-
+	RespondWithJSON(res, http.StatusOK, h.chains)
 }
 
 // RespondWithJSON provides an auxiliary function to return an HTTP response

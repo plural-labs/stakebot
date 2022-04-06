@@ -37,6 +37,6 @@ type Chain struct {
 	GRPC             string `toml:"grpc"`
 	Id               string `toml:"chain_id"`
 	Prefix           string `toml:"chain_prefix"`
-	DefaultInterval  uint64 `toml:"default_interval"`
-	DefaultTolerance uint64 `toml:"default_tolerance"`
+	DefaultFrequency  int32  `toml:"default_interval"`
+	DefaultTolerance int64  `toml:"default_tolerance"`
 }
