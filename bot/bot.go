@@ -2,9 +2,13 @@ package bot
 
 import (
 	"context"
+	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
+	"github.com/cosmos/cosmos-sdk/crypto/keyring"
+	badger "github.com/dgraph-io/badger/v3"
 	"github.com/gorilla/mux"
 	cron "github.com/robfig/cron/v3"
 	"github.com/rs/zerolog/log"
@@ -17,13 +21,15 @@ import (
 )
 
 type AutoStakeBot struct {
-	config types.Config
-	store  *store.Store
-	server *http.Server
-	cron   *cron.Cron
+	config  types.Config
+	store   *store.Store
+	server  *http.Server
+	cron    *cron.Cron
+	key     keyring.Keyring
+	address string
 }
 
-func New(config types.Config, homeDir string) (*AutoStakeBot, error) {
+func New(config types.Config, homeDir string, key keyring.Keyring) (*AutoStakeBot, error) {
 	store, err := store.New(homeDir)
 	if err != nil {
 		return nil, err
@@ -32,6 +38,15 @@ func New(config types.Config, homeDir string) (*AutoStakeBot, error) {
 	r := mux.NewRouter()
 	c := cron.New()
 	router.RegisterRoutes(r, store, c)
+
+	keys, err := key.List()
+	if err != nil {
+		return nil, err
+	}
+	if len(keys) != 1 {
+		return nil, fmt.Errorf("expected 1 key got %d", len(keys))
+	}
+	address := keys[0].GetAddress().String()
 
 	return &AutoStakeBot{
 		config: config,
@@ -42,21 +57,18 @@ func New(config types.Config, homeDir string) (*AutoStakeBot, error) {
 			WriteTimeout: 10 * time.Second,
 			ReadTimeout:  10 * time.Second,
 		},
-		cron: c,
+		cron:    c,
+		key:     key,
+		address: address,
 	}, nil
 }
 
+// Starts the bot. Is blocking. Cancel the context to gracefully shut the bot down.
+// This function only errors on start up else it will log.
 func (bot AutoStakeBot) Start(ctx context.Context) error {
-	records, err := bot.store.GetAll()
+	err := bot.StartJobs()
 	if err != nil {
 		return err
-	}
-	for _, record := range records {
-		id, err := bot.cron.AddFunc(record.Frequency, RestakeJob(record))
-		if err != nil {
-			return err
-		}
-		record.Id = int64(id)
 	}
 
 	go func() {
@@ -70,22 +82,100 @@ func (bot AutoStakeBot) Start(ctx context.Context) error {
 
 	select {
 	case <-ctx.Done():
-		return bot.server.Close()
+		log.Info().Msg("Shutting down auto staking bot...")
+		err := bot.server.Close()
+		if err != nil {
+			log.Error().Err(err)
+		}
+		err = bot.StopJobs()
+		if err != nil {
+			log.Error().Err(err)
+		}
+		return nil
 	}
 }
 
-func (bot AutoStakeBot) CreateRestakeJob(record *types.Record) error {
-	if record.Id >= 0 {
-		return nil
+func (bot AutoStakeBot) StartJobs() error {
+	cronStrings := map[int32]string{
+		1: "0 */6 * * *", // quarter day
+		2: "@daily",
+		3: "@weekly",
+		4: "@monthly",
 	}
 
-	id, err := bot.cron.AddFunc(record.Frequency, func() {
-		conn := grpc.Dial(bot.chain)
-		client.Restake(ctx)
-	})
-	if err != nil {
-		return err
+	// create a cron job for each frequency
+	for frequency, cronString := range cronStrings {
+		job, err := bot.store.GetJob(frequency)
+		if err != nil && err != badger.ErrKeyNotFound {
+			return err
+		}
+		if job != nil {
+			// a cron job at this frequency is already running. Perhaps we forgot to stop the previous one
+			log.Info().Str("frequency", types.Frequency_name[frequency]).Msg("Cron job already running")
+			continue
+		}
+
+		id, err := bot.cron.AddFunc(cronString, func() {
+			// We don't cache these as records may have been removed or added between cron jobs
+			records, err := bot.store.GetRecordsByFrequency(frequency)
+			if err != nil {
+				log.Error().Err(err).Msg("Daily restaking")
+			}
+			connections := make(map[string]*grpc.ClientConn)
+			for _, record := range records {
+				chain, err := bot.findChain(record.Address)
+				if err != nil {
+					log.Error().Err(err).Msg("starting cron job")
+				}
+				conn, ok := connections[chain.Id]
+				// lazily create grpc connections with chains as addresses require them
+				if !ok {
+					conn, err = grpc.Dial(chain.GRPC, grpc.WithInsecure())
+					if err != nil {
+						log.Error().Err(err).Str("address", record.Address).Str("target", chain.GRPC).Msg("dialing gRPC")
+						return
+					}
+					connections[chain.Id] = conn
+				}
+
+				// TODO: consider using a timeout so we don't get stuck on a single user
+				err = client.Restake(context.Background(), conn, record.Address, bot.address, record.Tolerance)
+				if err != nil {
+					log.Error().Err(err).Str("address", record.Address)
+					continue
+				}
+			}
+		})
+		if err != nil {
+			return err
+		}
+		// persist the job to disk
+		bot.store.SetJob(&types.Job{
+			Id:        int64(id),
+			Frequency: types.Frequency(frequency),
+		})
+
 	}
-	record.Id = int64(id)
+
+	// start up the scheduler
+	bot.cron.Start()
 	return nil
+}
+
+func (bot AutoStakeBot) StopJobs() error {
+	ctx := bot.cron.Stop()
+
+	// wait for all scheduled jobs to terminate
+	<-ctx.Done()
+
+	return bot.store.DeleteAllJobs()
+}
+
+func (bot AutoStakeBot) findChain(address string) (types.Chain, error) {
+	for _, chain := range bot.config.Chains {
+		if strings.HasPrefix(address, chain.Prefix) {
+			return chain, nil
+		}
+	}
+	return types.Chain{}, fmt.Errorf("no chain found for address %s", address)
 }

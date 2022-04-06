@@ -35,8 +35,8 @@ func LoadConfig(file string) (Config, error) {
 
 type Chain struct {
 	GRPC             string `toml:"grpc"`
-	ChainId          string `toml:"chain_id"`
-	ChainName        string `toml:"chain_name"`
+	Id               string `toml:"chain_id"`
+	Prefix           string `toml:"chain_prefix"`
 	DefaultInterval  uint64 `toml:"default_interval"`
 	DefaultTolerance uint64 `toml:"default_tolerance"`
 }

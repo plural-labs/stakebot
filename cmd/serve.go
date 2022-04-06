@@ -30,7 +30,12 @@ var serveCmd = &cobra.Command{
 			return err
 		}
 
-		stakingBot, err := bot.New(config, filepath.Join(homeDir, defaultDir))
+		keyring, err := getKeyring()
+		if err != nil {
+			return err
+		}
+
+		stakingBot, err := bot.New(config, filepath.Join(homeDir, defaultDir), keyring)
 		if err != nil {
 			return err
 		}

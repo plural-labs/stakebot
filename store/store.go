@@ -1,11 +1,10 @@
 package store
 
 import (
-	"fmt"
 	"path/filepath"
 
-	sdk "github.com/cosmos/cosmos-sdk/types"
 	badger "github.com/dgraph-io/badger/v3"
+	"github.com/google/orderedcode"
 	"google.golang.org/protobuf/proto"
 
 	"github.com/plural-labs/autostaker/types"
@@ -14,9 +13,8 @@ import (
 const (
 	defaultStoreName = "store.db"
 
-	dailyPrefix   = byte(0x00)
-	weeklyPrefix  = byte(0x01)
-	monthlyPrefix = byte(0x02)
+	addressPrefix = byte(0x00)
+	cronJobs      = byte(0x01)
 )
 
 type Store struct {
@@ -34,31 +32,84 @@ func New(dir string) (*Store, error) {
 	}, nil
 }
 
-func (s Store) Set(record *types.Record) error {
+func (s Store) SetJob(job *types.Job) error {
 	return s.db.Update(func(txn *badger.Txn) error {
-		k, err := key(record.Address)
+		bz, err := proto.Marshal(job)
 		if err != nil {
 			return err
 		}
+		return txn.Set(jobKey(int32(job.Frequency)), bz)
+	})
+}
+
+func (s Store) GetJob(frequency int32) (*types.Job, error) {
+	var job *types.Job
+	err := s.db.View(func(txn *badger.Txn) error {
+		item, err := txn.Get(jobKey(frequency))
+		if err != nil {
+			return err
+		}
+
+		// unmarshal value
+		item.Value(func(val []byte) error {
+			return proto.Unmarshal(val, job)
+		})
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return job, nil
+}
+
+func (s Store) DeleteAllJobs() error {
+	return s.db.View(func(txn *badger.Txn) error {
+		opts := badger.DefaultIteratorOptions
+		it := txn.NewIterator(opts)
+		defer it.Close()
+		prefix := []byte{cronJobs}
+		for it.Seek(prefix); it.Valid(); it.Next() {
+			item := it.Item()
+			err := txn.Delete(item.Key())
+			if err != nil {
+				return err
+			}
+			return nil
+		}
+		return nil
+	})
+}
+
+func (s Store) SetRecord(record *types.Record) error {
+	return s.db.Update(func(txn *badger.Txn) error {
 		bz, err := proto.Marshal(record)
 		if err != nil {
 			return err
 		}
-		return txn.Set(k, bz)
+		return txn.Set(key(int32(record.Frequency), record.Address), bz)
 	})
 }
 
-func (s Store) Get(address string) (*types.Record, error) {
+func (s Store) GetRecord(address string) (*types.Record, error) {
 	var record *types.Record
 	err := s.db.View(func(txn *badger.Txn) error {
-		k, err := key(address)
+		var (
+			item *badger.Item
+			err  error
+		)
+		// iterate over all the possible frequencies
+		for frequency := int32(1); frequency <= 4; frequency++ {
+			item, err = txn.Get(key(frequency, address))
+			if err != nil && err != badger.ErrKeyNotFound {
+				return err
+			}
+		}
+		// unable to find the address at any frequency
 		if err != nil {
 			return err
 		}
-		item, err := txn.Get(k)
-		if err != nil {
-			return err
-		}
+
+		// unmarshal value
 		item.Value(func(val []byte) error {
 			return proto.Unmarshal(val, record)
 		})
@@ -70,13 +121,17 @@ func (s Store) Get(address string) (*types.Record, error) {
 	return record, nil
 }
 
-func (s Store) GetAll() ([]*types.Record, error) {
+func (s Store) GetRecordsByFrequency(frequency int32) ([]*types.Record, error) {
 	records := make([]*types.Record, 0)
 	err := s.db.View(func(txn *badger.Txn) error {
 		opts := badger.DefaultIteratorOptions
 		it := txn.NewIterator(opts)
 		defer it.Close()
-		for it.Rewind(); it.Valid(); it.Next() {
+		prefix, err := orderedcode.Append(nil, frequency)
+		if err != nil {
+			panic(err)
+		}
+		for it.Seek(prefix); it.Valid(); it.Next() {
 			var record *types.Record
 			item := it.Item()
 			err := item.Value(func(v []byte) error {
@@ -99,10 +154,18 @@ func (s Store) Close() error {
 	return s.db.Close()
 }
 
-func key(address string) ([]byte, error) {
-	a, err := sdk.AccAddressFromBech32(address)
+func key(frequency int32, address string) []byte {
+	key, err := orderedcode.Append([]byte{addressPrefix}, frequency, address)
 	if err != nil {
-		return nil, fmt.Errorf("unable to parse address: %w", err)
+		panic(err)
 	}
-	return a, nil
+	return key
+}
+
+func jobKey(frequency int32) []byte {
+	key, err := orderedcode.Append([]byte{cronJobs}, frequency)
+	if err != nil {
+		panic(err)
+	}
+	return key
 }

@@ -2,14 +2,20 @@ syntax = "proto3";
 option go_package = "github.com/plural-labs/autostaker/types";
 
 message Record {
+    string address = 1;
+    Frequency frequency = 2;
+    int64 tolerance = 3;
+}
+
+message Job {
     int64 id = 1;
-    string address = 2;
-    Freuency frequency = 3;
-    string tolerance = 4;
+    Frequency frequency = 2;
 }
 
 enum Frequency {
-    DAILY = 1;
-    WEEKLY = 2;
-    MONTHLY = 3;
+    UNKNOWN = 0;
+    QUARTERDAY = 1;
+    DAILY = 2;
+    WEEKLY = 3;
+    MONTHLY = 4;
 }
