@@ -2,11 +2,13 @@ package v1
 
 import (
 	"context"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"net/http"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/cosmos/cosmos-sdk/types/bech32"
 	"github.com/cosmos/cosmos-sdk/x/authz"
 	distribution "github.com/cosmos/cosmos-sdk/x/distribution/types"
 	"github.com/cosmos/cosmos-sdk/x/feegrant"
@@ -31,6 +33,7 @@ func RegisterRoutes(router *mux.Router, store *store.Store, chains []types.Chain
 type Handler struct {
 	store   *store.Store
 	chains  []types.Chain
+	// hex coded address
 	address string
 }
 
@@ -126,6 +129,7 @@ func (h Handler) RegisterAddress(res http.ResponseWriter, req *http.Request) {
 	err = h.store.SetRecord(record)
 	if err != nil {
 		log.Error().Err(err).Msg("Saving new record")
+		// TODO: should return a 500 error
 		return
 	}
 
@@ -134,7 +138,31 @@ func (h Handler) RegisterAddress(res http.ResponseWriter, req *http.Request) {
 }
 
 func (h Handler) Address(res http.ResponseWriter, req *http.Request) {
-
+	chainId := req.URL.Query().Get("chain_id")
+	if chainId == "" {
+		// return hex coded address
+		RespondWithJSON(res, http.StatusOK, h.address)
+		return
+	}
+	for _, chain := range h.chains {
+		if chain.Id == chainId {
+			bz, err := hex.DecodeString(h.address)
+			if err != nil {
+				log.Error().Err(err).Msg("Decoding address")
+				// TODO: should return a 500 error
+				return
+			}
+			bech32Addr, err := bech32.ConvertAndEncode(chain.Prefix, bz)
+			if err != nil {
+				log.Error().Err(err).Msg("Converting address to Bech32")
+				// TODO: should return a 500 error
+				return
+			}
+			RespondWithJSON(res, http.StatusOK, bech32Addr)
+			return
+		}
+	}
+	RespondWithJSON(res, http.StatusOK, "Chain not supported")
 }
 
 // RespondWithJSON provides an auxiliary function to return an HTTP response

@@ -138,7 +138,7 @@ func (bot AutoStakeBot) StartJobs() error {
 				}
 
 				// TODO: consider using a timeout so we don't get stuck on a single user
-				err = bot.Restake(context.Background(), conn, record.Address, bot.address, record.Tolerance)
+				err = bot.Restake(context.Background(), record.Address, record.Tolerance)
 				if err != nil {
 					log.Error().Err(err).Str("address", record.Address)
 					continue
