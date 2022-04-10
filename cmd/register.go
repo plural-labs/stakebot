@@ -1,14 +1,21 @@
 package cmd
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net/http"
 	"net/url"
 	"os"
+	"time"
 
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
+	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/cosmos/cosmos-sdk/x/authz"
+	distribution "github.com/cosmos/cosmos-sdk/x/distribution/types"
+	"github.com/cosmos/cosmos-sdk/x/feegrant"
+	staking "github.com/cosmos/cosmos-sdk/x/staking/types"
 	"github.com/spf13/cobra"
 
 	"github.com/plural-labs/autostaker/client"
@@ -30,6 +37,11 @@ func init() {
 		Args:  cobra.ExactArgs(2),
 		RunE: func(c *cobra.Command, args []string) error {
 			_, err := url.Parse(args[0])
+			if err != nil {
+				return err
+			}
+
+			userAddress, err := sdk.AccAddressFromBech32(args[1])
 			if err != nil {
 				return err
 			}
@@ -74,9 +86,28 @@ func init() {
 				return err
 			}
 
+			if addressResp.StatusCode != 200 {
+				return fmt.Errorf("Received unexpected code %d from url with GET /address", chainsResp.StatusCode)
+			}
+
+			addressBytes, err := ioutil.ReadAll(addressResp.Body)
+			if err != nil {
+				return err
+			}
+
+			var address string
+			err = json.Unmarshal(addressBytes, &address)
+			if err != nil {
+				return err
+			}
+			botAddress, err := sdk.AccAddressFromBech32(address)
+			if err != nil {
+				return fmt.Errorf("Autostaking bot provided incorrect address %s, %w", address, err)
+			}
+
 			client := client.New(signer, chains)
 
-			return nil
+			return Authorize(c.Context(), client, userAddress, botAddress)
 		},
 	}
 
@@ -89,34 +120,42 @@ func init() {
 	rootCmd.AddCommand(registerCmd)
 }
 
-// func Authorize(ctx context.Context, signer keyring.Keyring, conn *grpc.ClientConn, userAddress, botAddress sdk.AccAddress) error {
-// 	delegateAuth := authz.NewGenericAuthorization(sdk.MsgTypeURL(&staking.MsgDelegate{}))
-// 	claimAuth := authz.NewGenericAuthorization(sdk.MsgTypeURL(&distribution.MsgWithdrawDelegatorReward{}))
-// 	inTenYears := time.Now().Add(10 * 365 * 24 * time.Hour)
+func Authorize(ctx context.Context, client *client.Client, userAddress, botAddress sdk.AccAddress) error {
+	delegateAuth := authz.NewGenericAuthorization(sdk.MsgTypeURL(&staking.MsgDelegate{}))
+	claimAuth := authz.NewGenericAuthorization(sdk.MsgTypeURL(&distribution.MsgWithdrawDelegatorReward{}))
+	inTenYears := time.Now().Add(10 * 365 * 24 * time.Hour)
 
-// 	authorizeDelegationsMsg, err := authz.NewMsgGrant(userAddress, botAddress, delegateAuth, inTenYears)
-// 	if err != nil {
-// 		return err
-// 	}
+	authorizeDelegationsMsg, err := authz.NewMsgGrant(userAddress, botAddress, delegateAuth, inTenYears)
+	if err != nil {
+		return err
+	}
 
-// 	authorizeClaimMsg, err := authz.NewMsgGrant(userAddress, botAddress, claimAuth, inTenYears)
-// 	if err != nil {
-// 		return err
-// 	}
+	authorizeClaimMsg, err := authz.NewMsgGrant(userAddress, botAddress, claimAuth, inTenYears)
+	if err != nil {
+		return err
+	}
 
-// 	allowedMsg, err := feegrant.NewAllowedMsgAllowance(&feegrant.BasicAllowance{SpendLimit: nil, Expiration: &inTenYears}, []string{sdk.MsgTypeURL(&authz.MsgExec{})})
-// 	if err != nil {
-// 		return err
-// 	}
-// 	feegrantMsg, err := feegrant.NewMsgGrantAllowance(allowedMsg, userAddress, botAddress)
-// 	if err != nil {
-// 		return err
-// 	}
+	allowedMsg, err := feegrant.NewAllowedMsgAllowance(&feegrant.BasicAllowance{SpendLimit: nil, Expiration: &inTenYears}, []string{sdk.MsgTypeURL(&authz.MsgExec{})})
+	if err != nil {
+		return err
+	}
+	feegrantMsg, err := feegrant.NewMsgGrantAllowance(allowedMsg, userAddress, botAddress)
+	if err != nil {
+		return err
+	}
 
-// 	bot.client.Send(ctx, []sdk.Msg{authorizeDelegationsMsg, authorizeClaimMsg, feegrantMsg})
+	resp, err := client.Send(ctx, []sdk.Msg{authorizeDelegationsMsg, authorizeClaimMsg, feegrantMsg})
+	if err != nil {
+		return err
+	}
 
-// }
+	if resp.Code != 0 {
+		return fmt.Errorf("failed to submit transaction: %s", resp.RawLog)
+	}
 
-// func (bot AutoStakeBot) Cancel() error {
-// 	return nil
-// }
+	return nil
+}
+
+func Cancel() error {
+	return nil
+}

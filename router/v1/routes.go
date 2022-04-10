@@ -31,8 +31,8 @@ func RegisterRoutes(router *mux.Router, store *store.Store, chains []types.Chain
 }
 
 type Handler struct {
-	store   *store.Store
-	chains  []types.Chain
+	store  *store.Store
+	chains []types.Chain
 	// hex coded address
 	address string
 }
