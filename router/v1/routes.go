@@ -6,11 +6,15 @@ import (
 	"fmt"
 	"net/http"
 
+	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/cosmos/cosmos-sdk/x/authz"
+	distribution "github.com/cosmos/cosmos-sdk/x/distribution/types"
+	"github.com/cosmos/cosmos-sdk/x/feegrant"
+	staking "github.com/cosmos/cosmos-sdk/x/staking/types"
 	"github.com/gorilla/mux"
 	"github.com/rs/zerolog/log"
 	"google.golang.org/grpc"
 
-	"github.com/plural-labs/autostaker/client"
 	"github.com/plural-labs/autostaker/store"
 	"github.com/plural-labs/autostaker/types"
 )
@@ -20,6 +24,7 @@ func RegisterRoutes(router *mux.Router, store *store.Store, chains []types.Chain
 	router.HandleFunc("/status", h.Status).Methods("GET")
 	router.HandleFunc("/chains", h.Chains).Methods("GET")
 	router.HandleFunc("/chain", h.ChainById).Methods("GET")
+	router.HandleFunc("/address", h.Address).Methods("GET")
 	router.HandleFunc("/register", h.RegisterAddress).Methods("POST")
 }
 
@@ -104,7 +109,7 @@ func (h Handler) RegisterAddress(res http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	valid, err := client.ValidateAddress(context.Background(), conn, address, h.address)
+	valid, err := ValidateAddress(context.Background(), conn, address, h.address)
 	if err != nil {
 		log.Error().Err(err).Msg("Registering address")
 	}
@@ -128,6 +133,10 @@ func (h Handler) RegisterAddress(res http.ResponseWriter, req *http.Request) {
 	RespondWithJSON(res, http.StatusOK, record)
 }
 
+func (h Handler) Address(res http.ResponseWriter, req *http.Request) {
+
+}
+
 // RespondWithJSON provides an auxiliary function to return an HTTP response
 // with JSON content and an HTTP status code.
 func RespondWithJSON(w http.ResponseWriter, code int, payload interface{}) {
@@ -136,4 +145,58 @@ func RespondWithJSON(w http.ResponseWriter, code int, payload interface{}) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(code)
 	_, _ = w.Write(response)
+}
+
+// ValidateAddress checks whether a specified address is valid for autostaking. The address must
+// have granted authorization of the required messages as well as feegrant
+func ValidateAddress(ctx context.Context, conn *grpc.ClientConn, address, authority string) (bool, error) {
+	feegrantClient := feegrant.NewQueryClient(conn)
+	resp, err := feegrantClient.Allowance(ctx, &feegrant.QueryAllowanceRequest{
+		Granter: address,
+		Grantee: authority,
+	})
+	if err != nil {
+		return false, err
+	}
+	if resp.Allowance == nil {
+		return false, fmt.Errorf("address %s is not covering the fees for autostaker (%s)", address, authority)
+	}
+	grant := resp.Allowance.Allowance.GetCachedValue().(feegrant.Grant)
+	allowance := grant.Allowance.GetCachedValue().(feegrant.AllowedMsgAllowance)
+	contains := false
+	for _, msgType := range allowance.AllowedMessages {
+		if msgType == sdk.MsgTypeURL(&authz.MsgExec{}) {
+			contains = true
+		}
+	}
+	if !contains {
+		return false, fmt.Errorf("address %s does not cover authz.MsgExec fees for autostaker (%s)", address, authority)
+	}
+
+	authzClient := authz.NewQueryClient(conn)
+	grantsResp, err := authzClient.Grants(ctx, &authz.QueryGrantsRequest{
+		Granter:    address,
+		Grantee:    authority,
+		MsgTypeUrl: sdk.MsgTypeURL(&staking.MsgDelegate{}),
+	})
+	if err != nil {
+		return false, err
+	}
+	if len(grantsResp.Grants) == 0 {
+		return false, fmt.Errorf("address %s must authorize the autostaker (%s) to MsgDelegate", address, authority)
+	}
+
+	grantsResp, err = authzClient.Grants(ctx, &authz.QueryGrantsRequest{
+		Granter:    address,
+		Grantee:    authority,
+		MsgTypeUrl: sdk.MsgTypeURL(&distribution.MsgWithdrawDelegatorReward{}),
+	})
+	if err != nil {
+		return false, err
+	}
+	if len(grantsResp.Grants) == 0 {
+		return false, fmt.Errorf("grants %s must authorize the autostaker (%s) to MsgWithdrawDelegatorReward", address, authority)
+	}
+
+	return true, nil
 }

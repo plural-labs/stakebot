@@ -52,6 +52,7 @@ type Chain struct {
 	Prefix           string `toml:"chain_prefix"`
 	DefaultFrequency int32  `toml:"default_interval"`
 	DefaultTolerance int64  `toml:"default_tolerance"`
+	NativeDenom      string `toml:"native_denom"`
 }
 
 func FindChainFromAddress(chains []Chain, address string) (Chain, error) {

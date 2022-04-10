@@ -24,7 +24,7 @@ type AutoStakeBot struct {
 	store   *store.Store
 	server  *http.Server
 	cron    *cron.Cron
-	key     keyring.Keyring
+	client  *client.Client
 	address string
 }
 
@@ -46,6 +46,8 @@ func New(config types.Config, homeDir string, key keyring.Keyring) (*AutoStakeBo
 	r := mux.NewRouter()
 	router.RegisterRoutes(r, store, config.Chains, address)
 
+	client := client.New(key, config.Chains)
+
 	return &AutoStakeBot{
 		config: config,
 		store:  store,
@@ -56,7 +58,7 @@ func New(config types.Config, homeDir string, key keyring.Keyring) (*AutoStakeBo
 			ReadTimeout:  10 * time.Second,
 		},
 		cron:    cron.New(),
-		key:     key,
+		client:  client,
 		address: address,
 	}, nil
 }
@@ -136,7 +138,7 @@ func (bot AutoStakeBot) StartJobs() error {
 				}
 
 				// TODO: consider using a timeout so we don't get stuck on a single user
-				err = client.Restake(context.Background(), conn, record.Address, bot.address, record.Tolerance)
+				err = bot.Restake(context.Background(), conn, record.Address, bot.address, record.Tolerance)
 				if err != nil {
 					log.Error().Err(err).Str("address", record.Address)
 					continue
