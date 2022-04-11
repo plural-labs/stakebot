@@ -5,6 +5,9 @@ message Record {
     string address = 1;
     Frequency frequency = 2;
     int64 tolerance = 3;
+    int64 last_updated_unix_time = 4;
+    int64 total_autostaked_rewards = 5;
+    string error_logs = 6;
 }
 
 message Job {

@@ -13,7 +13,6 @@ import (
 	"github.com/gorilla/mux"
 	cron "github.com/robfig/cron/v3"
 	"github.com/rs/zerolog/log"
-	"google.golang.org/grpc"
 
 	"github.com/plural-labs/autostaker/client"
 	"github.com/plural-labs/autostaker/router"
@@ -125,31 +124,21 @@ func (bot AutoStakeBot) StartJobs() error {
 			// We don't cache these as records may have been removed or added between cron jobs
 			records, err := bot.store.GetRecordsByFrequency(frequency)
 			if err != nil {
-				log.Error().Err(err).Msg("Daily restaking")
+				log.Error().Err(err).Str("frequency", types.Frequency_name[frequency]).Msg("Retrieveing records")
 			}
-			connections := make(map[string]*grpc.ClientConn)
-			for _, record := range records {
-				chain, err := bot.findChain(record.Address)
-				if err != nil {
-					log.Error().Err(err).Msg("starting cron job")
-				}
-				conn, ok := connections[chain.Id]
-				// lazily create grpc connections with chains as addresses require them
-				if !ok {
-					conn, err = grpc.Dial(chain.GRPC, grpc.WithInsecure())
-					if err != nil {
-						log.Error().Err(err).Str("address", record.Address).Str("target", chain.GRPC).Msg("dialing gRPC")
-						return
-					}
-					connections[chain.Id] = conn
-				}
 
+			for _, record := range records {
 				// TODO: consider using a timeout so we don't get stuck on a single user
-				err = bot.Restake(context.Background(), record.Address, record.Tolerance)
+				rewards, err := bot.Restake(context.Background(), record.Address, record.Tolerance)
 				if err != nil {
 					log.Error().Err(err).Str("address", record.Address)
+					record.ErrorLogs = err.Error()
 					continue
 				}
+				record.TotalAutostakedRewards += rewards
+				record.LastUpdatedUnixTime = time.Now().Unix()
+
+				bot.store.SetRecord(record)
 			}
 		})
 		if err != nil {

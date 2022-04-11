@@ -114,7 +114,15 @@ func init() {
 				return err
 			}
 
-			registerResp, err := http.Get(fmt.Sprintf("%s/v1/register?address=%s", url, userAddress.String()))
+			queryStr := fmt.Sprintf("%s/v1/register?address=%s", url, userAddress.String())
+			if tolerance >= 0 {
+				queryStr += fmt.Sprintf("&tolerance=%d", tolerance)
+			}
+			if frequency != "" {
+				queryStr += fmt.Sprintf("&frequency=%s", frequency)
+			}
+
+			registerResp, err := http.Get(queryStr)
 			if err != nil {
 				return err
 			}
@@ -133,7 +141,7 @@ func init() {
 	}
 
 	registerCmd.Flags().Int64Var(&tolerance, "tolerance", -1, "How many native tokens to remain liquid for fees")
-	registerCmd.Flags().StringVar(&frequency, "freuency", "daily", "How often to restake")
+	registerCmd.Flags().StringVar(&frequency, "frequency", "", "How often to restake (quarterday|daily|weekly|monthly)")
 	registerCmd.Flags().StringVar(&appName, "app", "", "Name of the application")
 	registerCmd.Flags().StringVar(&keyringDir, "keyring-dir", "", "Directory where the keyring is stored")
 	registerCmd.Flags().StringVar(&keyringBackend, "keyring-backend", keyring.BackendOS, "Select keyring's backend (os|file|test)")

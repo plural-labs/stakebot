@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/bech32"
@@ -79,7 +80,7 @@ func (h Handler) RegisterAddress(res http.ResponseWriter, req *http.Request) {
 	if address == "" {
 		RespondWithJSON(res, http.StatusOK, "No address specified")
 	}
-	freuencyStr := req.URL.Query().Get("frequency")
+	frequencyStr := req.URL.Query().Get("frequency")
 	toleranceStr := req.URL.Query().Get("tolerance")
 
 	chain, err := types.FindChainFromAddress(h.chains, address)
@@ -91,12 +92,12 @@ func (h Handler) RegisterAddress(res http.ResponseWriter, req *http.Request) {
 		tolerance int64
 		ok        bool
 	)
-	if freuencyStr == "" {
+	if frequencyStr == "" {
 		frequency = chain.DefaultFrequency
 	} else {
-		frequency, ok = types.Frequency_value[freuencyStr]
+		frequency, ok = types.Frequency_value[strings.ToUpper(frequencyStr)]
 		if !ok {
-			RespondWithJSON(res, http.StatusBadRequest, fmt.Sprintf("Unknown interval %s", freuencyStr))
+			RespondWithJSON(res, http.StatusBadRequest, fmt.Sprintf("Unknown interval %s", frequencyStr))
 			return
 		}
 	}

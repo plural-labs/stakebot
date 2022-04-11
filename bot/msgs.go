@@ -2,6 +2,7 @@ package bot
 
 import (
 	"context"
+	"fmt"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/x/authz"
@@ -20,14 +21,14 @@ import (
 // This is a blocking function.
 // NOTE: This only allows staking of the native token. I haven't seen a chain yet where you can stake other tokens
 // but correct me if I'm wrong.
-func (bot AutoStakeBot) Restake(ctx context.Context, address string, tolerance int64) error {
+func (bot AutoStakeBot) Restake(ctx context.Context, address string, tolerance int64) (int64, error) {
 	chain, err := types.FindChainFromAddress(bot.config.Chains, address)
 	if err != nil {
-		return err
+		return 0, err
 	}
 	conn, err := grpc.Dial(chain.GRPC, grpc.WithInsecure())
 	if err != nil {
-		return err
+		return 0, err
 	}
 	defer conn.Close()
 
@@ -51,7 +52,7 @@ func (bot AutoStakeBot) Restake(ctx context.Context, address string, tolerance i
 
 	resp, err := bankClient.Balance(ctx, &bank.QueryBalanceRequest{Address: address, Denom: chain.NativeDenom})
 	if err != nil {
-		return err
+		return 0, err
 	}
 
 	// Caclulate how much native token after claiming can be restaked
@@ -70,10 +71,14 @@ func (bot AutoStakeBot) Restake(ctx context.Context, address string, tolerance i
 	authzMsg := authz.NewMsgExec(sdk.AccAddress(bot.address), msgs)
 
 	// TODO: Might be helpful to catch the results and log them to INFO for debugging
-	_, err = bot.client.Send(ctx, []sdk.Msg{&authzMsg}, client.WithGranter(address))
+	txResp, err := bot.client.Send(ctx, []sdk.Msg{&authzMsg}, client.WithGranter(address))
 	if err != nil {
-		return err
+		return 0, err
 	}
 
-	return nil
+	if txResp.Code != 0 {
+		return 0, fmt.Errorf("failed to submit restake transaction: %v", txResp.RawLog)
+	}
+
+	return delegations.Total.AmountOf(chain.NativeDenom).BigInt().Int64(), nil
 }
