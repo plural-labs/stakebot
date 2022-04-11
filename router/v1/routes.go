@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strconv"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/bech32"
@@ -13,6 +14,7 @@ import (
 	distribution "github.com/cosmos/cosmos-sdk/x/distribution/types"
 	"github.com/cosmos/cosmos-sdk/x/feegrant"
 	staking "github.com/cosmos/cosmos-sdk/x/staking/types"
+	"github.com/gogo/protobuf/proto"
 	"github.com/gorilla/mux"
 	"github.com/rs/zerolog/log"
 	"google.golang.org/grpc"
@@ -27,7 +29,7 @@ func RegisterRoutes(router *mux.Router, store *store.Store, chains []types.Chain
 	router.HandleFunc("/chains", h.Chains).Methods("GET")
 	router.HandleFunc("/chain", h.ChainById).Methods("GET")
 	router.HandleFunc("/address", h.Address).Methods("GET")
-	router.HandleFunc("/register", h.RegisterAddress).Methods("POST")
+	router.HandleFunc("/register", h.RegisterAddress).Methods("GET")
 }
 
 type Handler struct {
@@ -101,8 +103,12 @@ func (h Handler) RegisterAddress(res http.ResponseWriter, req *http.Request) {
 	if toleranceStr == "" {
 		tolerance = chain.DefaultTolerance
 	} else {
-		// TODO: convert string to integer (I forgot how to do that)
-		tolerance = 1000000
+		number, err := strconv.Atoi(toleranceStr)
+		if err != nil {
+			RespondWithJSON(res, http.StatusBadRequest, fmt.Sprintf("Failed to parse tolerance: %s", err.Error()))
+			return
+		}
+		tolerance = int64(number)
 	}
 
 	conn, err := grpc.Dial(chain.GRPC, grpc.WithInsecure())
@@ -112,12 +118,21 @@ func (h Handler) RegisterAddress(res http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	valid, err := ValidateAddress(context.Background(), conn, address, h.address)
+	bz, err := hex.DecodeString(h.address)
+	if err != nil {
+		panic(err)
+	}
+	bech32Address, err := bech32.ConvertAndEncode(chain.Prefix, bz)
+	if err != nil {
+		panic(err)
+	}
+
+	valid, err := ValidateAddress(context.Background(), conn, address, bech32Address)
 	if err != nil {
 		log.Error().Err(err).Msg("Registering address")
 	}
 	if err != nil || !valid {
-		RespondWithJSON(res, http.StatusBadRequest, fmt.Sprintf("Unable to validate address: %s", chain.GRPC))
+		RespondWithJSON(res, http.StatusBadRequest, fmt.Sprintf("Unable to validate address %s, error: %s", address, err.Error()))
 		return
 	}
 
@@ -148,15 +163,11 @@ func (h Handler) Address(res http.ResponseWriter, req *http.Request) {
 		if chain.Id == chainId {
 			bz, err := hex.DecodeString(h.address)
 			if err != nil {
-				log.Error().Err(err).Msg("Decoding address")
-				// TODO: should return a 500 error
-				return
+				panic(err)
 			}
 			bech32Addr, err := bech32.ConvertAndEncode(chain.Prefix, bz)
 			if err != nil {
-				log.Error().Err(err).Msg("Converting address to Bech32")
-				// TODO: should return a 500 error
-				return
+				panic(err)
 			}
 			RespondWithJSON(res, http.StatusOK, bech32Addr)
 			return
@@ -184,13 +195,18 @@ func ValidateAddress(ctx context.Context, conn *grpc.ClientConn, address, author
 		Grantee: authority,
 	})
 	if err != nil {
-		return false, err
+		return false, fmt.Errorf("feegrant allowance query: %w", err)
 	}
 	if resp.Allowance == nil {
 		return false, fmt.Errorf("address %s is not covering the fees for autostaker (%s)", address, authority)
 	}
-	grant := resp.Allowance.Allowance.GetCachedValue().(feegrant.Grant)
-	allowance := grant.Allowance.GetCachedValue().(feegrant.AllowedMsgAllowance)
+
+	allowance := &feegrant.AllowedMsgAllowance{}
+	err = proto.Unmarshal(resp.Allowance.Allowance.Value, allowance)
+	if err != nil {
+		return false, fmt.Errorf("expected to umarshal AllowedMsgAllowance: %w", err)
+	}
+
 	contains := false
 	for _, msgType := range allowance.AllowedMessages {
 		if msgType == sdk.MsgTypeURL(&authz.MsgExec{}) {
@@ -208,7 +224,7 @@ func ValidateAddress(ctx context.Context, conn *grpc.ClientConn, address, author
 		MsgTypeUrl: sdk.MsgTypeURL(&staking.MsgDelegate{}),
 	})
 	if err != nil {
-		return false, err
+		return false, fmt.Errorf("authorization MsgDelegate query: %w", err)
 	}
 	if len(grantsResp.Grants) == 0 {
 		return false, fmt.Errorf("address %s must authorize the autostaker (%s) to MsgDelegate", address, authority)
@@ -220,7 +236,7 @@ func ValidateAddress(ctx context.Context, conn *grpc.ClientConn, address, author
 		MsgTypeUrl: sdk.MsgTypeURL(&distribution.MsgWithdrawDelegatorReward{}),
 	})
 	if err != nil {
-		return false, err
+		return false, fmt.Errorf("authorization MsgWithdrawDelegatorReward query: %w", err)
 	}
 	if len(grantsResp.Grants) == 0 {
 		return false, fmt.Errorf("grants %s must authorize the autostaker (%s) to MsgWithdrawDelegatorReward", address, authority)

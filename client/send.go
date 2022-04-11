@@ -3,13 +3,14 @@ package client
 import (
 	"context"
 	"fmt"
-	"time"
 
+	"github.com/gogo/protobuf/proto"
 	"google.golang.org/grpc"
 
 	codec "github.com/cosmos/cosmos-sdk/codec/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/tx"
+	"github.com/cosmos/cosmos-sdk/types/tx/signing"
 	auth "github.com/cosmos/cosmos-sdk/x/auth/types"
 
 	"github.com/plural-labs/autostaker/types"
@@ -48,7 +49,10 @@ func (c *Client) Send(ctx context.Context, msgs []sdk.Msg, opts ...SendOptionsFn
 		options = opt(options)
 	}
 
-	Tx := tx.Tx{Body: &tx.TxBody{Messages: anyMsgs}}
+	Tx := tx.Tx{
+		Body:     &tx.TxBody{Messages: anyMsgs},
+		AuthInfo: &tx.AuthInfo{Fee: &tx.Fee{}},
+	}
 	signers := Tx.GetSigners()
 	chain, err := types.FindChainFromAddress(c.chains, signers[0].String())
 	if err != nil {
@@ -79,30 +83,40 @@ func (c *Client) Send(ctx context.Context, msgs []sdk.Msg, opts ...SendOptionsFn
 		if err != nil {
 			return nil, fmt.Errorf("retrieving account info for %d: %w", signer, err)
 		}
-		accInfo := acc.Account.GetCachedValue().(auth.BaseAccount)
+		account := &auth.BaseAccount{}
+		err = proto.Unmarshal(acc.Account.Value, account)
+		if err != nil {
+			return nil, err
+		}
 
 		signerInfos[idx] = &tx.SignerInfo{
-			ModeInfo: &tx.ModeInfo{Sum: &tx.ModeInfo_Single_{}},
-			Sequence: accInfo.Sequence,
+			ModeInfo: &tx.ModeInfo{
+				Sum: &tx.ModeInfo_Single_{
+					Single: &tx.ModeInfo_Single{Mode: signing.SignMode_SIGN_MODE_DIRECT},
+				},
+			},
+			Sequence: account.Sequence,
 		}
-		accountNumbers[idx] = accInfo.AccountNumber
+		accountNumbers[idx] = account.AccountNumber
 	}
 
 	Tx.AuthInfo.SignerInfos = signerInfos
-	txBytes, err := Tx.Marshal()
-	if err != nil {
-		return nil, err
-	}
 
 	txClient := tx.NewServiceClient(conn)
-	simresp, err := txClient.Simulate(ctx, &tx.SimulateRequest{
-		TxBytes: txBytes,
-	})
-	if err != nil {
-		return nil, err
-	}
 
-	Tx.AuthInfo.Fee = &tx.Fee{GasLimit: simresp.GasInfo.GasUsed * 12 / 10}
+	// TODO: add gas estimation that ideally doesn't require signing (soft estimation)
+	// txBytes, err := Tx.Marshal()
+	// if err != nil {
+	// 	return nil, err
+	// }
+	// simresp, err := txClient.Simulate(ctx, &tx.SimulateRequest{
+	// 	TxBytes: txBytes,
+	// })
+	// if err != nil {
+	// 	return nil, err
+	// }
+
+	Tx.AuthInfo.Fee = &tx.Fee{GasLimit: 100000}
 
 	if options.Granter != "" {
 		Tx.AuthInfo.Fee.Granter = options.Granter
@@ -146,7 +160,12 @@ func (c *Client) Send(ctx context.Context, msgs []sdk.Msg, opts ...SendOptionsFn
 		return nil, err
 	}
 
-	txBytes, err = Tx.Marshal()
+	raw := &tx.TxRaw{
+		BodyBytes:     bodyBytes,
+		AuthInfoBytes: authInfoBytes,
+		Signatures:    signatures,
+	}
+	txBytes, err := proto.Marshal(raw)
 	if err != nil {
 		return nil, err
 	}
@@ -159,19 +178,20 @@ func (c *Client) Send(ctx context.Context, msgs []sdk.Msg, opts ...SendOptionsFn
 		return nil, err
 	}
 
-	for {
-		select {
-		case <-time.After(time.Millisecond * 100):
-			resTx, err := txClient.GetTx(ctx, &tx.GetTxRequest{Hash: txResp.TxResponse.TxHash})
-			if err != nil {
-				return nil, err
-			}
-			return resTx.TxResponse, nil
+	// for {
+	// 	select {
+	// 	case <-time.After(time.Millisecond * 100):
+	// 		resTx, err := txClient.GetTx(ctx, &tx.GetTxRequest{Hash: txResp.TxResponse.TxHash})
+	// 		if err != nil {
+	// 			return nil, err
+	// 		}
+	// 		return resTx.TxResponse, nil
 
-		case <-ctx.Done():
-			return nil, nil
-		}
-	}
+	// 	case <-ctx.Done():
+	// 		return nil, nil
+	// 	}
+	// }
+	return txResp.TxResponse, nil
 }
 
 type SendOptionsFn func(opts SendOptions) SendOptions

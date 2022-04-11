@@ -13,6 +13,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/x/authz"
+
 	distribution "github.com/cosmos/cosmos-sdk/x/distribution/types"
 	"github.com/cosmos/cosmos-sdk/x/feegrant"
 	staking "github.com/cosmos/cosmos-sdk/x/staking/types"
@@ -40,6 +41,7 @@ func init() {
 			if err != nil {
 				return err
 			}
+			url := args[0]
 
 			userAddress, err := sdk.AccAddressFromBech32(args[1])
 			if err != nil {
@@ -58,7 +60,7 @@ func init() {
 				return err
 			}
 
-			chainsResp, err := http.Get(fmt.Sprintf("%s/v1/chains", args[0]))
+			chainsResp, err := http.Get(fmt.Sprintf("%s/v1/chains", url))
 			if err != nil {
 				return err
 			}
@@ -81,7 +83,7 @@ func init() {
 				return fmt.Errorf("autostaker bot does not support any chain with the address %s", args[1])
 			}
 
-			addressResp, err := http.Get(fmt.Sprintf("%s/v1/address?chain_id=%s", args[0], chain.Id))
+			addressResp, err := http.Get(fmt.Sprintf("%s/v1/address?chain_id=%s", url, chain.Id))
 			if err != nil {
 				return err
 			}
@@ -105,9 +107,28 @@ func init() {
 				return fmt.Errorf("Autostaking bot provided incorrect address %s, %w", address, err)
 			}
 
-			client := client.New(signer, chains)
+			c.Printf("Authorizing autostaking bot (%s) with address %s on %s\n", botAddress.String(), userAddress.String(), chain.Id)
 
-			return Authorize(c.Context(), client, userAddress, botAddress)
+			client := client.New(signer, chains)
+			if err := AuthorizeRestaking(c.Context(), client, userAddress, botAddress); err != nil {
+				return err
+			}
+
+			registerResp, err := http.Get(fmt.Sprintf("%s/v1/register?address=%s", url, userAddress.String()))
+			if err != nil {
+				return err
+			}
+			if registerResp.StatusCode != 200 {
+				body, err := ioutil.ReadAll(registerResp.Body)
+				if err != nil {
+					return fmt.Errorf("Failed to read body from GET /register: %w", err)
+				}
+				return fmt.Errorf("Received unexpected code %d from url with GET /register: %s", registerResp.StatusCode, body)
+			}
+
+			c.Printf("Successfully registered %s\n", userAddress.String())
+
+			return nil
 		},
 	}
 
@@ -120,7 +141,7 @@ func init() {
 	rootCmd.AddCommand(registerCmd)
 }
 
-func Authorize(ctx context.Context, client *client.Client, userAddress, botAddress sdk.AccAddress) error {
+func AuthorizeRestaking(ctx context.Context, c *client.Client, userAddress, botAddress sdk.AccAddress) error {
 	delegateAuth := authz.NewGenericAuthorization(sdk.MsgTypeURL(&staking.MsgDelegate{}))
 	claimAuth := authz.NewGenericAuthorization(sdk.MsgTypeURL(&distribution.MsgWithdrawDelegatorReward{}))
 	inTenYears := time.Now().Add(10 * 365 * 24 * time.Hour)
@@ -144,7 +165,7 @@ func Authorize(ctx context.Context, client *client.Client, userAddress, botAddre
 		return err
 	}
 
-	resp, err := client.Send(ctx, []sdk.Msg{authorizeDelegationsMsg, authorizeClaimMsg, feegrantMsg})
+	resp, err := c.Send(ctx, []sdk.Msg{authorizeDelegationsMsg, authorizeClaimMsg, feegrantMsg}, client.WithFee(sdk.NewCoin("stake", sdk.NewInt(10))))
 	if err != nil {
 		return err
 	}
@@ -156,6 +177,8 @@ func Authorize(ctx context.Context, client *client.Client, userAddress, botAddre
 	return nil
 }
 
-func Cancel() error {
+// TODO: Implement ability to revoke restaking
+func RevokeRestaking(ctx context.Context, client *client.Client, userAddress, botAddress sdk.AccAddress) error {
+	panic("Not Implemented")
 	return nil
 }

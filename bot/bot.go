@@ -2,11 +2,13 @@ package bot
 
 import (
 	"context"
+	"encoding/hex"
 	"fmt"
 	"net/http"
 	"time"
 
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
+	"github.com/cosmos/cosmos-sdk/types/bech32"
 	badger "github.com/dgraph-io/badger/v3"
 	"github.com/gorilla/mux"
 	cron "github.com/robfig/cron/v3"
@@ -44,7 +46,12 @@ func New(config types.Config, homeDir string, key keyring.Keyring) (*AutoStakeBo
 	address := keys[0].GetAddress().String()
 
 	r := mux.NewRouter()
-	router.RegisterRoutes(r, store, config.Chains, address)
+	_, bz, err := bech32.DecodeAndConvert(address)
+	if err != nil {
+		panic(err)
+	}
+	hexAddress := hex.EncodeToString(bz)
+	router.RegisterRoutes(r, store, config.Chains, hexAddress)
 
 	client := client.New(key, config.Chains)
 

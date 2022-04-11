@@ -1,7 +1,7 @@
 package cmd
 
 import (
-	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 
@@ -34,14 +34,20 @@ var initCmd = &cobra.Command{
 			return err
 		}
 
-		cmd.Printf(`
+		if keyInfo != nil {
+			cmd.Printf(`
 Generated a new private key for the autostaker server
 Pubkey: %X
 Mnemonic: %v
 
 Write this mnemonic phrase in a safe place
 `, keyInfo.GetPubKey().Bytes(), mnemonic)
-		return initConfig()
+		}
+		if err := initConfig(); err != nil {
+			return err
+		}
+		cmd.Printf("Initialized config\n")
+		return nil
 	},
 }
 
@@ -65,7 +71,8 @@ func initAccount() (keyring.Info, string, error) {
 	// Check to see if the account already exists
 	info, err := kb.Key(keyName)
 	if info != nil {
-		return nil, "", errors.New("account already initialized")
+		fmt.Printf("Account already exists\n")
+		return nil, "", nil
 	}
 
 	keyringAlgos, _ := kb.SupportedAlgorithms()
@@ -90,11 +97,19 @@ func initAccount() (keyring.Info, string, error) {
 }
 
 func initConfig() error {
-	config := types.DefaultConfig()
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
 		return err
 	}
-	filePath := filepath.Join(homeDir, defaultDir, defaultConfigFileName)
+	rootDir := filepath.Join(homeDir, defaultDir)
+	if err := os.Mkdir(rootDir, 0700); err != nil {
+		return err
+	}
+	filePath := filepath.Join(rootDir, defaultConfigFileName)
+	_, err = os.Stat(filePath)
+	if os.IsExist(err) {
+		return nil
+	}
+	config := types.DefaultConfig()
 	return config.Save(filePath)
 }

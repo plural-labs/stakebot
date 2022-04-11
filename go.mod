@@ -36,7 +36,7 @@ require (
 	github.com/go-kit/kit v0.10.0 // indirect
 	github.com/go-logfmt/logfmt v0.5.0 // indirect
 	github.com/godbus/dbus v0.0.0-20190726142602-4481cbc300e2 // indirect
-	github.com/gogo/protobuf v1.3.3 // indirect
+	github.com/gogo/protobuf v1.3.3
 	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/golang/snappy v0.0.3 // indirect
 	github.com/google/btree v1.0.0 // indirect
@@ -84,7 +84,7 @@ require (
 	github.com/tendermint/btcd v0.1.1 // indirect
 	github.com/tendermint/crypto v0.0.0-20191022145703-50d29ede1e15 // indirect
 	github.com/tendermint/go-amino v0.16.0 // indirect
-	github.com/tendermint/tendermint v0.34.14 // indirect
+	github.com/tendermint/tendermint v0.34.14
 	github.com/tendermint/tm-db v0.6.4 // indirect
 	github.com/zondax/hid v0.9.0 // indirect
 	go.etcd.io/bbolt v1.3.5 // indirect
@@ -103,6 +103,7 @@ require (
 
 require (
 	github.com/cosmos/iavl v0.17.3 // indirect
+	github.com/desertbit/timer v0.0.0-20180107155436-c41aec40b27f // indirect
 	github.com/felixge/httpsnoop v1.0.1 // indirect
 	github.com/gogo/gateway v1.1.0 // indirect
 	github.com/golang/glog v0.0.0-20160126235308-23def4e6c14b // indirect
@@ -111,11 +112,14 @@ require (
 	github.com/gorilla/handlers v1.5.1 // indirect
 	github.com/gorilla/websocket v1.4.2 // indirect
 	github.com/grpc-ecosystem/go-grpc-middleware v1.3.0 // indirect
+	github.com/improbable-eng/grpc-web v0.14.1 // indirect
 	github.com/klauspost/compress v1.12.3 // indirect
 	github.com/rakyll/statik v0.1.7 // indirect
 	github.com/rcrowley/go-metrics v0.0.0-20200313005456-10cdbea86bc0 // indirect
 	github.com/regen-network/cosmos-proto v0.3.1 // indirect
+	github.com/rs/cors v1.7.0 // indirect
 	go.opencensus.io v0.23.0 // indirect
+	nhooyr.io/websocket v1.8.6 // indirect
 )
 
 replace github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.3-alpha.regen.1
