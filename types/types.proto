@@ -17,8 +17,9 @@ message Job {
 
 enum Frequency {
     UNKNOWN = 0;
-    QUARTERDAY = 1;
-    DAILY = 2;
-    WEEKLY = 3;
-    MONTHLY = 4;
+    HOURLY = 1;
+    QUARTERDAY = 2;
+    DAILY = 3;
+    WEEKLY = 4;
+    MONTHLY = 5;
 }

@@ -5,7 +5,6 @@ import (
 
 	badger "github.com/dgraph-io/badger/v3"
 	"github.com/google/orderedcode"
-	"github.com/rs/zerolog/log"
 	"google.golang.org/protobuf/proto"
 
 	"github.com/plural-labs/autostaker/types"
@@ -70,11 +69,7 @@ func (s Store) DeleteAllJobs() error {
 		prefix := []byte{cronJobs}
 		for it.Seek(prefix); it.Valid(); it.Next() {
 			item := it.Item()
-			err := txn.Delete(item.Key())
-			if err != nil {
-				return err
-			}
-			return nil
+			return txn.Delete(item.Key())
 		}
 		return nil
 	})
@@ -135,7 +130,6 @@ func (s Store) DeleteRecord(address string) error {
 			if err != nil {
 				return err
 			}
-			log.Info().Str("address", address).Msg("deleted record")
 		}
 		return nil
 	})

@@ -102,10 +102,11 @@ func (bot AutoStakeBot) Start(ctx context.Context) error {
 
 func (bot AutoStakeBot) StartJobs() error {
 	cronStrings := map[int32]string{
-		1: "0 */6 * * *", // quarter day
-		2: "@daily",
-		3: "@weekly",
-		4: "@monthly",
+		1: "@hourly",
+		2: "0 */6 * * *", // quarter day
+		3: "@daily",
+		4: "@weekly",
+		5: "@monthly",
 	}
 
 	// create a cron job for each frequency
@@ -129,16 +130,19 @@ func (bot AutoStakeBot) StartJobs() error {
 
 			for _, record := range records {
 				// TODO: consider using a timeout so we don't get stuck on a single user
-				rewards, err := bot.Restake(context.Background(), record.Address, record.Tolerance)
+				rewards, err := bot.Restake(context.TODO(), record.Address, record.Tolerance)
 				if err != nil {
-					log.Error().Err(err).Str("address", record.Address)
+					log.Error().Err(err).Str("address", record.Address).Msg("Restaking")
 					record.ErrorLogs = err.Error()
 					continue
 				}
 				record.TotalAutostakedRewards += rewards
 				record.LastUpdatedUnixTime = time.Now().Unix()
 
-				bot.store.SetRecord(record)
+				err = bot.store.SetRecord(record)
+				if err != nil {
+					log.Error().Err(err).Str("address", record.Address).Msg("Saving record")
+				}
 			}
 		})
 		if err != nil {

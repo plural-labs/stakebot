@@ -60,6 +60,10 @@ func init() {
 				return err
 			}
 
+			if _, err := signer.KeyByAddress(userAddress); err != nil {
+				return err
+			}
+
 			chainsResp, err := http.Get(fmt.Sprintf("%s/v1/chains", url))
 			if err != nil {
 				return err
