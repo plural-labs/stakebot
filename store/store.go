@@ -1,6 +1,7 @@
 package store
 
 import (
+	"fmt"
 	"path/filepath"
 
 	badger "github.com/dgraph-io/badger/v3"
@@ -69,6 +70,7 @@ func (s Store) DeleteAllJobs() error {
 		prefix := []byte{cronJobs}
 		for it.Seek(prefix); it.Valid(); it.Next() {
 			item := it.Item()
+			fmt.Printf("deleted key %s", string(item.Key()))
 			return txn.Delete(item.Key())
 		}
 		return nil
@@ -125,8 +127,12 @@ func (s Store) GetRecord(address string) (*types.Record, error) {
 
 func (s Store) DeleteRecord(address string) error {
 	return s.db.Update(func(txn *badger.Txn) error {
-		for frequency := int32(1); frequency <= 4; frequency++ {
-			err := txn.Delete(key(frequency, address))
+		opts := badger.DefaultIteratorOptions
+		opts.PrefetchValues = false
+		it := txn.NewIterator(opts)
+		defer it.Close()
+		for it.Seek([]byte{cronJobs}); it.Valid(); it.Next() {
+			err := txn.Delete(it.Item().Key())
 			if err != nil {
 				return err
 			}
@@ -166,6 +172,21 @@ func (s Store) GetRecordsByFrequency(frequency int32) ([]*types.Record, error) {
 
 func (s Store) Close() error {
 	return s.db.Close()
+}
+
+func (s Store) Len() (int, error) {
+	recordCount := 0
+	err := s.db.Update(func(txn *badger.Txn) error {
+		opts := badger.DefaultIteratorOptions
+		opts.PrefetchValues = false
+		it := txn.NewIterator(opts)
+		defer it.Close()
+		for it.Seek([]byte{addressPrefix}); it.Valid(); it.Next() {
+			recordCount++
+		}
+		return nil
+	})
+	return recordCount, err
 }
 
 func key(frequency int32, address string) []byte {

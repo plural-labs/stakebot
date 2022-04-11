@@ -25,6 +25,7 @@ func DefaultChains() []Chain {
 			Prefix:           "cosmos",
 			DefaultFrequency: int32(Frequency_DAILY),
 			DefaultTolerance: 1000000,
+			NativeDenom:      "uatom",
 		},
 	}
 }

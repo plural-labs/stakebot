@@ -40,7 +40,7 @@ var serveCmd = &cobra.Command{
 			return err
 		}
 
-		ctx, cancel := signal.NotifyContext(cmd.Context(), syscall.SIGTERM)
+		ctx, cancel := signal.NotifyContext(cmd.Context(), syscall.SIGTERM, syscall.SIGINT)
 		defer cancel()
 
 		err = stakingBot.Start(ctx)

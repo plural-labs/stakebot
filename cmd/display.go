@@ -12,7 +12,7 @@ func init() {
 
 var displayCmd = &cobra.Command{
 	Use:   "address",
-	Short: "Run the autostaker server",
+	Short: "Return the address of the autostaker server",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		keyring, err := getKeyring()
 		if err != nil {
