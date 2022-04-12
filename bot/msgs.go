@@ -12,7 +12,6 @@ import (
 	"google.golang.org/grpc"
 
 	"github.com/plural-labs/autostaker/client"
-	"github.com/plural-labs/autostaker/types"
 )
 
 // Restake queries an addresses' delegations. It executes a claim call on all delegations. It then calculates
@@ -22,7 +21,7 @@ import (
 // NOTE: This only allows staking of the native token. I haven't seen a chain yet where you can stake other tokens
 // but correct me if I'm wrong.
 func (bot AutoStakeBot) Restake(ctx context.Context, address string, tolerance int64) (int64, error) {
-	chain, err := types.FindChainFromAddress(bot.config.Chains, address)
+	chain, err := bot.chains.FindChainFromAddress(address)
 	if err != nil {
 		return 0, err
 	}

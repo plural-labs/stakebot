@@ -1,11 +1,14 @@
 package cmd
 
 import (
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
+	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 
-	"github.com/plural-labs/autostaker/bot"
 	"github.com/plural-labs/autostaker/types"
 	"github.com/spf13/cobra"
 )
@@ -28,31 +31,39 @@ func init() {
 				return err
 			}
 
-			chain, err := types.FindChainFromAddress(config.Chains, args[0])
+			chain, err := config.Chains.FindChainFromAddress(args[0])
 			if err != nil {
 				return fmt.Errorf("autostakebot does not support chain with address %s", args[0])
-			}
-
-			keyring, err := getKeyring()
-			if err != nil {
-				return err
-			}
-
-			stakingBot, err := bot.New(config, filepath.Join(homeDir, defaultDir), keyring)
-			if err != nil {
-				return err
 			}
 
 			if tolerance < 0 {
 				tolerance = chain.DefaultTolerance
 			}
 
-			value, err := stakingBot.Restake(c.Context(), args[0], tolerance)
+			addr, err := url.Parse(config.ListenAddr)
 			if err != nil {
 				return err
 			}
 
-			c.Printf("Successfully restaked %d tokens\n", value)
+			resp, err := http.Get(fmt.Sprintf("%s/v1/status?address=%s&tolerance=%s", addr.String(), args[0], tolerance))
+			if err != nil {
+				return err
+			}
+			if resp.StatusCode != 200 {
+				return fmt.Errorf("Received unexpected code %d from url", resp.StatusCode)
+			}
+
+			respBytes, err := ioutil.ReadAll(resp.Body)
+			if err != nil {
+				return err
+			}
+			var message string
+			err = json.Unmarshal(respBytes, &message)
+			if err != nil {
+				return err
+			}
+
+			c.Printf(message)
 
 			return nil
 		},

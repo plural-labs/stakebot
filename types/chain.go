@@ -9,7 +9,7 @@ import (
 )
 
 type Config struct {
-	Chains     []Chain
+	Chains     ChainRegistry
 	ListenAddr string `toml:"listen_addr"`
 }
 
@@ -58,11 +58,22 @@ type Chain struct {
 	AppName          string `toml:"app_name"`
 }
 
-func FindChainFromAddress(chains []Chain, address string) (Chain, error) {
-	for _, chain := range chains {
+type ChainRegistry []Chain
+
+func (r ChainRegistry) FindChainFromAddress(address string) (Chain, error) {
+	for _, chain := range r {
 		if strings.HasPrefix(address, chain.Prefix) {
 			return chain, nil
 		}
 	}
 	return Chain{}, fmt.Errorf("no chain found for address %s", address)
+}
+
+func (r ChainRegistry) FindChainById(id string) (Chain, error) {
+	for _, chain := range r {
+		if id == chain.Id {
+			return chain, nil
+		}
+	}
+	return Chain{}, fmt.Errorf("no chain found with id %s", id)
 }

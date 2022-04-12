@@ -12,8 +12,6 @@ import (
 	"github.com/cosmos/cosmos-sdk/types/tx"
 	"github.com/cosmos/cosmos-sdk/types/tx/signing"
 	auth "github.com/cosmos/cosmos-sdk/x/auth/types"
-
-	"github.com/plural-labs/autostaker/types"
 )
 
 func WithGranter(granter string) SendOptionsFn {
@@ -54,7 +52,7 @@ func (c *Client) Send(ctx context.Context, msgs []sdk.Msg, opts ...SendOptionsFn
 		AuthInfo: &tx.AuthInfo{Fee: &tx.Fee{}},
 	}
 	signers := Tx.GetSigners()
-	chain, err := types.FindChainFromAddress(c.chains, signers[0].String())
+	chain, err := c.chains.FindChainFromAddress(signers[0].String())
 	if err != nil {
 		return nil, err
 	}

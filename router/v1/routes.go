@@ -2,7 +2,6 @@ package v1
 
 import (
 	"context"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -10,7 +9,6 @@ import (
 	"strings"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	"github.com/cosmos/cosmos-sdk/types/bech32"
 	"github.com/cosmos/cosmos-sdk/x/authz"
 	distribution "github.com/cosmos/cosmos-sdk/x/distribution/types"
 	"github.com/cosmos/cosmos-sdk/x/feegrant"
@@ -20,24 +18,22 @@ import (
 	"github.com/rs/zerolog/log"
 	"google.golang.org/grpc"
 
-	"github.com/plural-labs/autostaker/store"
+	"github.com/plural-labs/autostaker/bot"
 	"github.com/plural-labs/autostaker/types"
 )
 
-func RegisterRoutes(router *mux.Router, store *store.Store, chains []types.Chain, address string) {
-	h := &Handler{store: store, chains: chains, address: address}
+func RegisterRoutes(router *mux.Router, bot *bot.AutoStakeBot) {
+	h := &Handler{bot: bot}
 	router.HandleFunc("/status", h.Status).Methods("GET")
 	router.HandleFunc("/chains", h.Chains).Methods("GET")
 	router.HandleFunc("/chain", h.ChainById).Methods("GET")
 	router.HandleFunc("/address", h.Address).Methods("GET")
 	router.HandleFunc("/register", h.RegisterAddress).Methods("GET")
+	router.HandleFunc("/restake", h.Restake).Methods("GET")
 }
 
 type Handler struct {
-	store  *store.Store
-	chains []types.Chain
-	// hex coded address
-	address string
+	bot *bot.AutoStakeBot
 }
 
 func (h Handler) Status(res http.ResponseWriter, req *http.Request) {
@@ -46,7 +42,7 @@ func (h Handler) Status(res http.ResponseWriter, req *http.Request) {
 		res.WriteHeader(http.StatusOK)
 		return
 	} else {
-		record, err := h.store.GetRecord(address)
+		record, err := h.bot.Store.GetRecord(address)
 		if err != nil {
 			RespondWithJSON(res, http.StatusOK, err)
 		} else {
@@ -56,7 +52,7 @@ func (h Handler) Status(res http.ResponseWriter, req *http.Request) {
 }
 
 func (h Handler) Chains(res http.ResponseWriter, req *http.Request) {
-	RespondWithJSON(res, http.StatusOK, h.chains)
+	RespondWithJSON(res, http.StatusOK, h.bot.Chains())
 }
 
 func (h Handler) ChainById(res http.ResponseWriter, req *http.Request) {
@@ -66,7 +62,7 @@ func (h Handler) ChainById(res http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	for _, chain := range h.chains {
+	for _, chain := range h.bot.Chains() {
 		if chain.Id == id {
 			RespondWithJSON(res, http.StatusOK, chain)
 			return
@@ -83,7 +79,7 @@ func (h Handler) RegisterAddress(res http.ResponseWriter, req *http.Request) {
 	frequencyStr := req.URL.Query().Get("frequency")
 	toleranceStr := req.URL.Query().Get("tolerance")
 
-	chain, err := types.FindChainFromAddress(h.chains, address)
+	chain, err := h.bot.Chains().FindChainFromAddress(address)
 	if err != nil {
 		RespondWithJSON(res, http.StatusOK, fmt.Sprintf("No chain saved corresponds with the address %s", address))
 	}
@@ -119,11 +115,7 @@ func (h Handler) RegisterAddress(res http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	bz, err := hex.DecodeString(h.address)
-	if err != nil {
-		panic(err)
-	}
-	bech32Address, err := bech32.ConvertAndEncode(chain.Prefix, bz)
+	bech32Address, err := h.bot.Bech32Address(chain.Id)
 	if err != nil {
 		panic(err)
 	}
@@ -142,7 +134,7 @@ func (h Handler) RegisterAddress(res http.ResponseWriter, req *http.Request) {
 		Frequency: types.Frequency(frequency),
 		Tolerance: tolerance,
 	}
-	err = h.store.SetRecord(record)
+	err = h.bot.Store.SetRecord(record)
 	if err != nil {
 		log.Error().Err(err).Msg("Saving new record")
 		// TODO: should return a 500 error
@@ -157,24 +149,25 @@ func (h Handler) Address(res http.ResponseWriter, req *http.Request) {
 	chainId := req.URL.Query().Get("chain_id")
 	if chainId == "" {
 		// return hex coded address
-		RespondWithJSON(res, http.StatusOK, h.address)
+		RespondWithJSON(res, http.StatusOK, h.bot.HEXAddress())
 		return
 	}
-	for _, chain := range h.chains {
-		if chain.Id == chainId {
-			bz, err := hex.DecodeString(h.address)
-			if err != nil {
-				panic(err)
-			}
-			bech32Addr, err := bech32.ConvertAndEncode(chain.Prefix, bz)
-			if err != nil {
-				panic(err)
-			}
-			RespondWithJSON(res, http.StatusOK, bech32Addr)
-			return
-		}
+
+	address, err := h.bot.Bech32Address(chainId)
+	if err != nil {
+		RespondWithJSON(res, http.StatusOK, "Chain not supported")
+		return
 	}
-	RespondWithJSON(res, http.StatusOK, "Chain not supported")
+
+	RespondWithJSON(res, http.StatusOK, address)
+}
+
+func (h Handler) Restake(res http.ResponseWriter, req *http.Request) {
+	address := req.URL.Query().Get("address")
+	if address == "" {
+		RespondWithJSON(res, http.StatusOK, "No address specified")
+	}
+
 }
 
 // RespondWithJSON provides an auxiliary function to return an HTTP response

@@ -45,7 +45,6 @@ var statusCmd = &cobra.Command{
 			return err
 		}
 
-
 		lastUpdated := "-"
 		if record.LastUpdatedUnixTime != 0 {
 			lastUpdated = time.Now().Sub(time.UnixMicro(record.LastUpdatedUnixTime)).String()

@@ -4,32 +4,29 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
-	"net/http"
 	"time"
 
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"github.com/cosmos/cosmos-sdk/types/bech32"
 	badger "github.com/dgraph-io/badger/v3"
-	"github.com/gorilla/mux"
 	cron "github.com/robfig/cron/v3"
 	"github.com/rs/zerolog/log"
 
 	"github.com/plural-labs/autostaker/client"
-	"github.com/plural-labs/autostaker/router"
 	"github.com/plural-labs/autostaker/store"
 	"github.com/plural-labs/autostaker/types"
 )
 
 type AutoStakeBot struct {
-	config  types.Config
-	store   *store.Store
-	server  *http.Server
+	Store *store.Store
+
+	chains  types.ChainRegistry
 	cron    *cron.Cron
 	client  *client.Client
 	address string
 }
 
-func New(config types.Config, homeDir string, key keyring.Keyring) (*AutoStakeBot, error) {
+func New(homeDir string, key keyring.Keyring, chains []types.Chain) (*AutoStakeBot, error) {
 	store, err := store.New(homeDir)
 	if err != nil {
 		return nil, err
@@ -44,55 +41,33 @@ func New(config types.Config, homeDir string, key keyring.Keyring) (*AutoStakeBo
 	}
 	address := keys[0].GetAddress().String()
 
-	r := mux.NewRouter()
 	_, bz, err := bech32.DecodeAndConvert(address)
 	if err != nil {
 		panic(err)
 	}
 	hexAddress := hex.EncodeToString(bz)
-	router.RegisterRoutes(r, store, config.Chains, hexAddress)
-
-	client := client.New(key, config.Chains)
+	client := client.New(key, chains)
 
 	return &AutoStakeBot{
-		config: config,
-		store:  store,
-		server: &http.Server{
-			Handler:      r,
-			Addr:         config.ListenAddr,
-			WriteTimeout: 10 * time.Second,
-			ReadTimeout:  10 * time.Second,
-		},
+		chains:  chains,
+		Store:   store,
 		cron:    cron.New(),
 		client:  client,
-		address: address,
+		address: hexAddress,
 	}, nil
 }
 
-// Starts the bot. Is blocking. Cancel the context to gracefully shut the bot down.
+// Run runs the bot. It is blocking. Cancel the context to gracefully shut the bot down.
 // This function only errors on start up else it will log.
-func (bot AutoStakeBot) Start(ctx context.Context) error {
+func (bot AutoStakeBot) Run(ctx context.Context) error {
 	err := bot.StartJobs()
 	if err != nil {
 		return err
 	}
 
-	// start running the server
-	go func() {
-		log.Info().Str("ListenAddress", bot.config.ListenAddr).Msg("Starting server...")
-		err := bot.server.ListenAndServe()
-		if err != nil && err != http.ErrServerClosed {
-			log.Error().Err(err).Msg("HTTP server")
-		}
-	}()
-
 	select {
 	case <-ctx.Done():
 		log.Info().Msg("Shutting down auto staking bot...")
-		err := bot.server.Close()
-		if err != nil {
-			log.Error().Err(err)
-		}
 		err = bot.StopJobs()
 		if err != nil {
 			log.Error().Err(err)
@@ -112,7 +87,7 @@ func (bot AutoStakeBot) StartJobs() error {
 
 	// create a cron job for each frequency
 	for frequency, cronString := range cronStrings {
-		job, err := bot.store.GetJob(frequency)
+		job, err := bot.Store.GetJob(frequency)
 		if err != nil && err != badger.ErrKeyNotFound {
 			return err
 		}
@@ -124,7 +99,7 @@ func (bot AutoStakeBot) StartJobs() error {
 
 		id, err := bot.cron.AddFunc(cronString, func() {
 			// We don't cache these as records may have been removed or added between cron jobs
-			records, err := bot.store.GetRecordsByFrequency(frequency)
+			records, err := bot.Store.GetRecordsByFrequency(frequency)
 			if err != nil {
 				log.Error().Err(err).Str("frequency", types.Frequency_name[frequency]).Msg("Retrieveing records")
 			}
@@ -140,7 +115,7 @@ func (bot AutoStakeBot) StartJobs() error {
 				record.TotalAutostakedRewards += rewards
 				record.LastUpdatedUnixTime = time.Now().Unix()
 
-				err = bot.store.SetRecord(record)
+				err = bot.Store.SetRecord(record)
 				if err != nil {
 					log.Error().Err(err).Str("address", record.Address).Msg("Saving record")
 				}
@@ -151,7 +126,7 @@ func (bot AutoStakeBot) StartJobs() error {
 		}
 
 		// persist the job to disk
-		bot.store.SetJob(&types.Job{
+		bot.Store.SetJob(&types.Job{
 			Id:        int64(id),
 			Frequency: types.Frequency(frequency),
 		})
@@ -161,7 +136,7 @@ func (bot AutoStakeBot) StartJobs() error {
 
 	// start up the scheduler
 	bot.cron.Start()
-	records, err := bot.store.Len()
+	records, err := bot.Store.Len()
 	if err != nil {
 		return err
 	}
@@ -175,9 +150,29 @@ func (bot AutoStakeBot) StopJobs() error {
 	// wait for all scheduled jobs to terminate
 	<-ctx.Done()
 
-	return bot.store.DeleteAllJobs()
+	return bot.Store.DeleteAllJobs()
 }
 
-func (bot AutoStakeBot) findChain(address string) (types.Chain, error) {
-	return types.FindChainFromAddress(bot.config.Chains, address)
+func (bot AutoStakeBot) Chains() types.ChainRegistry {
+	return bot.chains
+}
+
+func (bot AutoStakeBot) HEXAddress() string {
+	return bot.address
+}
+
+func (bot AutoStakeBot) Bech32Address(chainID string) (string, error) {
+	chain, err := bot.chains.FindChainById(chainID)
+	if err != nil {
+		return "", nil
+	}
+	bz, err := hex.DecodeString(bot.address)
+	if err != nil {
+		panic(err)
+	}
+	bech32Address, err := bech32.ConvertAndEncode(chain.Prefix, bz)
+	if err != nil {
+		panic(err)
+	}
+	return bech32Address, nil
 }

@@ -21,7 +21,7 @@ func init() {
 var findCmd = &cobra.Command{
 	Use:   "find [address]",
 	Short: "Search for an address",
-	Args: cobra.ExactArgs(1),
+	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		homeDir, err := os.UserHomeDir()
 		if err != nil {
@@ -56,7 +56,6 @@ var findCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-
 
 		lastUpdated := "-"
 		if record.LastUpdatedUnixTime != 0 {

@@ -75,13 +75,13 @@ func init() {
 			if err != nil {
 				return err
 			}
-			var chains []types.Chain
+			var chains types.ChainRegistry
 			err = json.Unmarshal(chainBytes, &chains)
 			if err != nil {
 				return err
 			}
 
-			chain, err := types.FindChainFromAddress(chains, args[1])
+			chain, err := chains.FindChainFromAddress(args[1])
 			if err != nil {
 				return fmt.Errorf("autostaker bot does not support any chain with the address %s", args[1])
 			}

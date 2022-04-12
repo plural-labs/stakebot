@@ -9,6 +9,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/plural-labs/autostaker/bot"
+	"github.com/plural-labs/autostaker/router"
 	"github.com/plural-labs/autostaker/types"
 )
 
@@ -35,7 +36,7 @@ var serveCmd = &cobra.Command{
 			return err
 		}
 
-		stakingBot, err := bot.New(config, filepath.Join(homeDir, defaultDir), keyring)
+		stakingBot, err := bot.New(filepath.Join(homeDir, defaultDir), keyring, config.Chains)
 		if err != nil {
 			return err
 		}
@@ -43,10 +44,12 @@ var serveCmd = &cobra.Command{
 		ctx, cancel := signal.NotifyContext(cmd.Context(), syscall.SIGTERM, syscall.SIGINT)
 		defer cancel()
 
-		err = stakingBot.Start(ctx)
+		err = stakingBot.Run(ctx)
 		if err != nil {
 			return err
 		}
+
+		err = router.Serve(ctx, config.ListenAddr, stakingBot)
 
 		<-ctx.Done()
 

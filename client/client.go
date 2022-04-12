@@ -8,9 +8,9 @@ import (
 
 type Client struct {
 	signer keyring.Keyring
-	chains []types.Chain
+	chains types.ChainRegistry
 }
 
-func New(signer keyring.Keyring, chains []types.Chain) *Client {
+func New(signer keyring.Keyring, chains types.ChainRegistry) *Client {
 	return &Client{signer: signer, chains: chains}
 }
