@@ -26,6 +26,7 @@ func DefaultChains() []Chain {
 			DefaultFrequency: int32(Frequency_DAILY),
 			DefaultTolerance: 1000000,
 			NativeDenom:      "uatom",
+			AppName:          "gaia",
 		},
 	}
 }
@@ -54,6 +55,7 @@ type Chain struct {
 	DefaultFrequency int32  `toml:"default_interval"`
 	DefaultTolerance int64  `toml:"default_tolerance"`
 	NativeDenom      string `toml:"native_denom"`
+	AppName          string `toml:"app_name"`
 }
 
 func FindChainFromAddress(chains []Chain, address string) (Chain, error) {

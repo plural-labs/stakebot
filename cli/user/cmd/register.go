@@ -23,15 +23,14 @@ import (
 	"github.com/plural-labs/autostaker/types"
 )
 
-var (
-	frequency      string
-	tolerance      int64
-	keyringDir     string
-	appName        string
-	keyringBackend string
-)
-
 func init() {
+	var (
+		frequency      string
+		tolerance      int64
+		keyringDir     string
+		appName        string
+		keyringBackend string
+	)
 	var registerCmd = &cobra.Command{
 		Use:   "register [url] [address]",
 		Short: "Set up an account with a autostaking bot",

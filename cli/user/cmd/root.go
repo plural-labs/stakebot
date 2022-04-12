@@ -9,7 +9,7 @@ import (
 
 var rootCmd = &cobra.Command{
 	Use:   "autostaker",
-	Short: "Autostaker is a server for automagically claiming and delegating stake",
+	Short: "Autostaker is a client cli for setting up a bot to automagically claim and delegate stake on Cosmos chains",
 }
 
 func Execute() {
