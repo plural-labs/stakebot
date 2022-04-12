@@ -168,13 +168,22 @@ func (h Handler) Restake(res http.ResponseWriter, req *http.Request) {
 		RespondWithJSON(res, http.StatusOK, "No address specified")
 	}
 
-	record, err := h.bot.Store.GetRecord(address)
-	if err != nil {
-		RespondWithJSON(res, http.StatusOK, err)
+	toleranceStr := req.URL.Query().Get("tolerance")
+	var (
+		tolerance int64
+		err       error
+	)
+	if toleranceStr == "" {
+		record, err := h.bot.Store.GetRecord(address)
+		if err != nil {
+			RespondWithJSON(res, http.StatusOK, err)
+		}
+		tolerance = record.Tolerance
+	} else {
+		tolerance, err = strconv.ParseInt(toleranceStr, 10, 64)
 	}
 
-
-	value, err := h.bot.Restake(context.Background(), address, record.Tolerance)
+	value, err := h.bot.Restake(context.Background(), address, tolerance)
 	if err != nil {
 		RespondWithJSON(res, http.StatusOK, err)
 	}

@@ -31,13 +31,9 @@ func init() {
 				return err
 			}
 
-			chain, err := config.Chains.FindChainFromAddress(args[0])
+			_, err = config.Chains.FindChainFromAddress(args[0])
 			if err != nil {
 				return fmt.Errorf("autostakebot does not support chain with address %s", args[0])
-			}
-
-			if tolerance < 0 {
-				tolerance = chain.DefaultTolerance
 			}
 
 			addr, err := url.Parse(config.ListenAddr)
@@ -45,7 +41,13 @@ func init() {
 				return err
 			}
 
-			resp, err := http.Get(fmt.Sprintf("%s/v1/status?address=%s&tolerance=%s", addr.String(), args[0], tolerance))
+			query := fmt.Sprintf("%s/v1/restake?address=%s", addr.String(), args[0])
+
+			if tolerance >= 0 {
+				query += fmt.Sprintf("&tolerance=%s", tolerance)
+			}
+
+			resp, err := http.Get(query)
 			if err != nil {
 				return err
 			}
