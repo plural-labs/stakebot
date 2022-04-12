@@ -27,7 +27,7 @@ var statusCmd = &cobra.Command{
 		}
 		url := args[0]
 
-		resp, err := http.Get(fmt.Sprintf("%s/v1/status?address=%s", url, args[0]))
+		resp, err := http.Get(fmt.Sprintf("%s/v1/status?address=%s", url, args[1]))
 		if err != nil {
 			return err
 		}
@@ -45,7 +45,11 @@ var statusCmd = &cobra.Command{
 			return err
 		}
 
-		lastUpdated := time.Now().Sub(time.UnixMicro(record.LastUpdatedUnixTime))
+
+		lastUpdated := "-"
+		if record.LastUpdatedUnixTime != 0 {
+			lastUpdated = time.Now().Sub(time.UnixMicro(record.LastUpdatedUnixTime)).String()
+		}
 
 		c.Printf(`Status:
 Address: %s
@@ -54,7 +58,7 @@ Frequency: %s
 Last Restaked: %s ago
 Total Rewards Restaked: %d
 Errors: %s
-`, record.Address, record.Tolerance, types.Frequency_name[int32(record.Frequency)], lastUpdated.String(), record.TotalAutostakedRewards, record.ErrorLogs)
+`, record.Address, record.Tolerance, types.Frequency_name[int32(record.Frequency)], lastUpdated, record.TotalAutostakedRewards, record.ErrorLogs)
 
 		return nil
 	},

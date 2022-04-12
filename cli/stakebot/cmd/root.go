@@ -8,7 +8,7 @@ import (
 )
 
 var rootCmd = &cobra.Command{
-	Use:   "autostakebot",
+	Use:   "stakebot",
 	Short: "Autostakebot is a cli for running a service to automagically claim and delegate stake on accounts across Cosmos chains",
 }
 

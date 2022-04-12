@@ -41,7 +41,12 @@ func (bot AutoStakeBot) Restake(ctx context.Context, address string, tolerance i
 		},
 	)
 
-	msgs := make([]sdk.Msg, 0, len(delegations.Rewards)*2)
+	// Check if there are any rewards to claim
+	if delegations.Total.AmountOf(chain.NativeDenom).BigInt().Int64() == 0 {
+		return 0, nil
+	}
+
+	msgs := make([]sdk.Msg, len(delegations.Rewards)*2)
 	for idx, delegation := range delegations.Rewards {
 		claimMsg := &distribution.MsgWithdrawDelegatorReward{
 			DelegatorAddress: address,

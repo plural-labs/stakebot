@@ -10,7 +10,7 @@ Autostaker leverages the `authz` and `feegrant` modules. User accounts must gran
 
 After granting access to perform these messages and cover the fees, Users then register their account as `/register/<account>` i.e. `/register/cosmos1vhpsuaxg51gvvzwyhqejvwfved5ywa3n6vl4ld`. This automatically enables autostaking so long as the chain, in this case `cosmoshub-4` is supported.
 
-### Staking Freuency
+### Staking Frequency
 
 The server deploys cron jobs which iteratively claim the accounts rewards, then by calculating transaction fees, delegates the available tokens to the accounts validators, maintaing parity with the percentage delegated. It delegates with a safety margin so that future transactions have sufficient funds. By default, the autostaker operates on a weekly cadence but this can be adjusted
 
