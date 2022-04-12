@@ -52,7 +52,7 @@ func init() {
 				return err
 			}
 
-			c.Printf("Successgfully restaked %d tokens", value)
+			c.Printf("Successfully restaked %d tokens\n", value)
 
 			return nil
 		},

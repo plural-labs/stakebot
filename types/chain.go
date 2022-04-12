@@ -14,7 +14,7 @@ type Config struct {
 }
 
 func DefaultConfig() Config {
-	return Config{ListenAddr: "localhost:8000", Chains: DefaultChains()}
+	return Config{ListenAddr: "http://localhost:8000", Chains: DefaultChains()}
 }
 
 func DefaultChains() []Chain {
