@@ -168,6 +168,18 @@ func (h Handler) Restake(res http.ResponseWriter, req *http.Request) {
 		RespondWithJSON(res, http.StatusOK, "No address specified")
 	}
 
+	record, err := h.bot.Store.GetRecord(address)
+	if err != nil {
+		RespondWithJSON(res, http.StatusOK, err)
+	}
+
+
+	value, err := h.bot.Restake(context.Background(), address, record.Tolerance)
+	if err != nil {
+		RespondWithJSON(res, http.StatusOK, err)
+	}
+
+	RespondWithJSON(res, http.StatusOK, fmt.Sprintf("Successfully restaked %d tokens", value))
 }
 
 // RespondWithJSON provides an auxiliary function to return an HTTP response
