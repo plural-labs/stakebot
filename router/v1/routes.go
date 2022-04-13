@@ -44,7 +44,7 @@ func (h Handler) Status(res http.ResponseWriter, req *http.Request) {
 	} else {
 		record, err := h.bot.Store.GetRecord(address)
 		if err != nil {
-			RespondWithJSON(res, http.StatusOK, err)
+			RespondWithJSON(res, http.StatusOK, err.Error())
 		} else {
 			RespondWithJSON(res, http.StatusOK, record)
 		}
@@ -163,29 +163,37 @@ func (h Handler) Address(res http.ResponseWriter, req *http.Request) {
 }
 
 func (h Handler) Restake(res http.ResponseWriter, req *http.Request) {
+	log.Info().Msg("Restake")
 	address := req.URL.Query().Get("address")
 	if address == "" {
-		RespondWithJSON(res, http.StatusOK, "No address specified")
+		RespondWithJSON(res, http.StatusBadRequest, "No address specified")
+		return
 	}
 
 	toleranceStr := req.URL.Query().Get("tolerance")
-	var (
-		tolerance int64
-		err       error
-	)
+	var tolerance int64
 	if toleranceStr == "" {
 		record, err := h.bot.Store.GetRecord(address)
 		if err != nil {
-			RespondWithJSON(res, http.StatusOK, err)
+			log.Error().Err(err).Str("address", address).Msg("Getting record")
+			RespondWithJSON(res, http.StatusOK, err.Error())
+			return
 		}
 		tolerance = record.Tolerance
 	} else {
+		var err error
 		tolerance, err = strconv.ParseInt(toleranceStr, 10, 64)
+		if err != nil {
+			RespondWithJSON(res, http.StatusOK, err.Error())
+			return
+		}
 	}
 
 	value, err := h.bot.Restake(context.Background(), address, tolerance)
 	if err != nil {
-		RespondWithJSON(res, http.StatusOK, err)
+		log.Error().Err(err).Str("address", address).Msg("Restaking")
+		RespondWithJSON(res, http.StatusOK, err.Error())
+		return
 	}
 
 	RespondWithJSON(res, http.StatusOK, fmt.Sprintf("Successfully restaked %d tokens", value))

@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
+	"github.com/rs/zerolog/log"
 
 	"github.com/plural-labs/autostaker/bot"
 )
@@ -21,5 +22,23 @@ func Serve(ctx context.Context, listenAddr string, stakebot *bot.AutoStakeBot) e
 		ReadTimeout:  10 * time.Second,
 	}
 
-	return server.ListenAndServe()
+	go func() {
+		err := server.ListenAndServe()
+		if err != nil && err != http.ErrServerClosed {
+			log.Error().Err(err).Msg("Server error")
+		}
+	}()
+
+	log.Info().Str("ListenAddr", listenAddr).Msg("Started server")
+
+	select {
+	case <-ctx.Done():
+		log.Info().Msg("Shutting down server")
+		err := server.Close()
+		if err != nil {
+			return err
+		}
+		return nil
+
+	}
 }

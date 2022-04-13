@@ -3,12 +3,14 @@ package bot
 import (
 	"context"
 	"fmt"
+	"time"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/x/authz"
 	bank "github.com/cosmos/cosmos-sdk/x/bank/types"
 	distribution "github.com/cosmos/cosmos-sdk/x/distribution/types"
 	staking "github.com/cosmos/cosmos-sdk/x/staking/types"
+	"github.com/rs/zerolog/log"
 	"google.golang.org/grpc"
 
 	"github.com/plural-labs/autostaker/client"
@@ -41,7 +43,9 @@ func (bot AutoStakeBot) Restake(ctx context.Context, address string, tolerance i
 	)
 
 	// Check if there are any rewards to claim
-	if delegations.Total.AmountOf(chain.NativeDenom).BigInt().Int64() == 0 {
+	totalRewards := delegations.Total.AmountOf(chain.NativeDenom).RoundInt64()
+	log.Info().Interface("rewards", delegations).Str("address", address).Int64("totalRewards", totalRewards).Msg("Total rewards")
+	if totalRewards <= 0 {
 		return 0, nil
 	}
 
@@ -60,7 +64,7 @@ func (bot AutoStakeBot) Restake(ctx context.Context, address string, tolerance i
 	}
 
 	// Caclulate how much native token after claiming can be restaked
-	stakableBalance := resp.Balance.Amount.Int64() + delegations.Total.AmountOf(chain.NativeDenom).BigInt().Int64() - tolerance
+	stakableBalance := resp.Balance.Amount.Int64() + totalRewards - tolerance
 	for idx, delegation := range delegations.Rewards {
 		amount := stakableBalance / delegation.Reward.AmountOf(chain.NativeDenom).BigInt().Int64()
 		delegateMsg := &staking.MsgDelegate{
@@ -72,17 +76,43 @@ func (bot AutoStakeBot) Restake(ctx context.Context, address string, tolerance i
 	}
 
 	// wrap all the messages in an auth exec message
-	authzMsg := authz.NewMsgExec(sdk.AccAddress(bot.address), msgs)
+	botBech32Addr, err := bot.Bech32Address(chain.Id)
+	if err != nil {
+		panic(err)
+	}
+	accAddress, err := sdk.AccAddressFromBech32(botBech32Addr)
+	if err != nil {
+		panic(err)
+	}
+	authzMsg := authz.NewMsgExec(accAddress, msgs)
+	log.Info().Str("botAddress", botBech32Addr).Str("userAddress", address).Msg("Prepared messages")
 
 	// TODO: Might be helpful to catch the results and log them to INFO for debugging
-	txResp, err := bot.client.Send(ctx, []sdk.Msg{&authzMsg}, client.WithGranter(address))
+	txResp, err := bot.client.Send(ctx, []sdk.Msg{&authzMsg}, client.WithGranter(address), client.WithPubKey())
 	if err != nil {
-		return 0, err
+		return 0, fmt.Errorf("error sending messages: %w", err)
 	}
 
 	if txResp.Code != 0 {
 		return 0, fmt.Errorf("failed to submit restake transaction: %v", txResp.RawLog)
 	}
 
-	return delegations.Total.AmountOf(chain.NativeDenom).BigInt().Int64(), nil
+	log.Info().Str("data", txResp.Data).Str("logs", txResp.RawLog).Msg("Succesfully sumbitted transaction")
+
+	record, err := bot.Store.GetRecord(address)
+	if err != nil {
+		log.Error().Err(err).Msg("unexpected error in retrieving rewards")
+		return totalRewards, nil
+	}
+
+	record.TotalAutostakedRewards += totalRewards
+	record.LastUpdatedUnixTime = time.Now().Unix()
+
+	err = bot.Store.SetRecord(record)
+	if err != nil {
+		log.Error().Err(err).Str("address", record.Address).Msg("Saving record")
+		return totalRewards, nil
+	}
+
+	return totalRewards, nil
 }

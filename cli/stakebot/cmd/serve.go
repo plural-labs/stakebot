@@ -44,15 +44,12 @@ var serveCmd = &cobra.Command{
 		ctx, cancel := signal.NotifyContext(cmd.Context(), syscall.SIGTERM, syscall.SIGINT)
 		defer cancel()
 
-		err = stakingBot.Run(ctx)
+		err = stakingBot.StartJobs()
+		defer stakingBot.StopJobs()
 		if err != nil {
 			return err
 		}
 
-		err = router.Serve(ctx, config.ListenAddr, stakingBot)
-
-		<-ctx.Done()
-
-		return nil
+		return router.Serve(ctx, config.ListenAddr, stakingBot)
 	},
 }

@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"net/url"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/plural-labs/autostaker/types"
@@ -34,12 +34,12 @@ var findCmd = &cobra.Command{
 			return err
 		}
 
-		addr, err := url.Parse(config.ListenAddr)
-		if err != nil {
-			return err
+		addr := config.ListenAddr
+		if !strings.Contains(config.ListenAddr, "://") {
+			addr = "http://" + addr
 		}
 
-		resp, err := http.Get(fmt.Sprintf("%s/v1/status?address=%s", addr.String(), args[0]))
+		resp, err := http.Get(fmt.Sprintf("%s/v1/status?address=%s", addr, args[0]))
 		if err != nil {
 			return err
 		}

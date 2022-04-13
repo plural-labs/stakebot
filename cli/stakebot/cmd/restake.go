@@ -5,10 +5,11 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"net/url"
 	"os"
 	"path/filepath"
+	"strings"
 
+	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/plural-labs/autostaker/types"
 	"github.com/spf13/cobra"
 )
@@ -31,25 +32,30 @@ func init() {
 				return err
 			}
 
-			_, err = config.Chains.FindChainFromAddress(args[0])
-			if err != nil {
-				return fmt.Errorf("autostakebot does not support chain with address %s", args[0])
-			}
-
-			addr, err := url.Parse(config.ListenAddr)
+			userAddress, err := sdk.AccAddressFromBech32(args[0])
 			if err != nil {
 				return err
 			}
 
-			query := fmt.Sprintf("%s/v1/restake?address=%s", addr.String(), args[0])
+			_, err = config.Chains.FindChainFromAddress(userAddress.String())
+			if err != nil {
+				return fmt.Errorf("autostakebot does not support chain with address %s", userAddress.String())
+			}
+
+			addr := config.ListenAddr
+			if !strings.Contains(config.ListenAddr, "://") {
+				addr = "http://" + addr
+			}
+
+			query := fmt.Sprintf("%s/v1/restake?address=%s", addr, userAddress.String())
 
 			if tolerance >= 0 {
-				query += fmt.Sprintf("&tolerance=%s", tolerance)
+				query += fmt.Sprintf("&tolerance=%d", tolerance)
 			}
 
 			resp, err := http.Get(query)
 			if err != nil {
-				return err
+				return fmt.Errorf("http GET error: %w", err)
 			}
 			if resp.StatusCode != 200 {
 				return fmt.Errorf("Received unexpected code %d from url", resp.StatusCode)
@@ -57,12 +63,12 @@ func init() {
 
 			respBytes, err := ioutil.ReadAll(resp.Body)
 			if err != nil {
-				return err
+				return fmt.Errorf("Reading response: %w", err)
 			}
 			var message string
 			err = json.Unmarshal(respBytes, &message)
 			if err != nil {
-				return err
+				return fmt.Errorf("Unmarshalling message: %w", err)
 			}
 
 			c.Printf(message)

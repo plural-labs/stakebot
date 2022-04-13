@@ -3,8 +3,11 @@ package client
 import (
 	"context"
 	"fmt"
+	"strings"
+	"time"
 
 	"github.com/gogo/protobuf/proto"
+	"github.com/rs/zerolog/log"
 	"google.golang.org/grpc"
 
 	codec "github.com/cosmos/cosmos-sdk/codec/types"
@@ -24,6 +27,13 @@ func WithGranter(granter string) SendOptionsFn {
 func WithFee(fee sdk.Coin) SendOptionsFn {
 	return func(opts SendOptions) SendOptions {
 		opts.Fee = fee
+		return opts
+	}
+}
+
+func WithPubKey() SendOptionsFn {
+	return func(opts SendOptions) SendOptions {
+		opts.PubKey = true
 		return opts
 	}
 }
@@ -60,7 +70,7 @@ func (c *Client) Send(ctx context.Context, msgs []sdk.Msg, opts ...SendOptionsFn
 	for _, signer := range signers {
 		_, err := c.signer.KeyByAddress(signer)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("checking keys: %w", err)
 		}
 	}
 
@@ -94,6 +104,15 @@ func (c *Client) Send(ctx context.Context, msgs []sdk.Msg, opts ...SendOptionsFn
 				},
 			},
 			Sequence: account.Sequence,
+		}
+		if options.PubKey {
+			info, _ := c.signer.KeyByAddress(signer)
+			pk := info.GetPubKey()
+			pkAny, err := codec.NewAnyWithValue(pk)
+			if err != nil {
+				return nil, err
+			}
+			signerInfos[idx].PublicKey = pkAny
 		}
 		accountNumbers[idx] = account.AccountNumber
 	}
@@ -147,7 +166,7 @@ func (c *Client) Send(ctx context.Context, msgs []sdk.Msg, opts ...SendOptionsFn
 
 		sig, _, err := c.signer.SignByAddress(signer, signedBytes)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to sign message: %w", err)
 		}
 		signatures[idx] = sig
 	}
@@ -168,6 +187,8 @@ func (c *Client) Send(ctx context.Context, msgs []sdk.Msg, opts ...SendOptionsFn
 		return nil, err
 	}
 
+	log.Info().Interface("messages", msgs).Msg("Broadcasting messages")
+
 	txResp, err := txClient.BroadcastTx(ctx, &tx.BroadcastTxRequest{
 		TxBytes: txBytes,
 		Mode:    tx.BroadcastMode_BROADCAST_MODE_SYNC,
@@ -176,20 +197,23 @@ func (c *Client) Send(ctx context.Context, msgs []sdk.Msg, opts ...SendOptionsFn
 		return nil, err
 	}
 
-	// for {
-	// 	select {
-	// 	case <-time.After(time.Millisecond * 100):
-	// 		resTx, err := txClient.GetTx(ctx, &tx.GetTxRequest{Hash: txResp.TxResponse.TxHash})
-	// 		if err != nil {
-	// 			return nil, err
-	// 		}
-	// 		return resTx.TxResponse, nil
+	for {
+		select {
+		case <-time.After(time.Millisecond * 100):
+			resTx, err := txClient.GetTx(ctx, &tx.GetTxRequest{Hash: txResp.TxResponse.TxHash})
+			if err != nil {
+				if strings.Contains(err.Error(), "tx not found") {
+					// retry
+					continue
+				}
+				return nil, err
+			}
+			return resTx.TxResponse, nil
 
-	// 	case <-ctx.Done():
-	// 		return nil, nil
-	// 	}
-	// }
-	return txResp.TxResponse, nil
+		case <-ctx.Done():
+			return nil, nil
+		}
+	}
 }
 
 type SendOptionsFn func(opts SendOptions) SendOptions
@@ -197,4 +221,5 @@ type SendOptionsFn func(opts SendOptions) SendOptions
 type SendOptions struct {
 	Granter string
 	Fee     sdk.Coin
+	PubKey  bool
 }

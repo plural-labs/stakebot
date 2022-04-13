@@ -57,25 +57,6 @@ func New(homeDir string, key keyring.Keyring, chains []types.Chain) (*AutoStakeB
 	}, nil
 }
 
-// Run runs the bot. It is blocking. Cancel the context to gracefully shut the bot down.
-// This function only errors on start up else it will log.
-func (bot AutoStakeBot) Run(ctx context.Context) error {
-	err := bot.StartJobs()
-	if err != nil {
-		return err
-	}
-
-	select {
-	case <-ctx.Done():
-		log.Info().Msg("Shutting down auto staking bot...")
-		err = bot.StopJobs()
-		if err != nil {
-			log.Error().Err(err)
-		}
-		return nil
-	}
-}
-
 func (bot AutoStakeBot) StartJobs() error {
 	cronStrings := map[int32]string{
 		1: "@hourly",
