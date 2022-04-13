@@ -3,7 +3,6 @@ package bot
 import (
 	"context"
 	"fmt"
-	"time"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/x/authz"
@@ -66,12 +65,15 @@ func (bot AutoStakeBot) Restake(ctx context.Context, address string, tolerance i
 	// Caclulate how much native token after claiming can be restaked
 	stakableBalance := resp.Balance.Amount.Int64() + totalRewards - tolerance
 	for idx, delegation := range delegations.Rewards {
-		amount := stakableBalance / delegation.Reward.AmountOf(chain.NativeDenom).BigInt().Int64()
+		amount := (stakableBalance * delegation.Reward.AmountOf(chain.NativeDenom).RoundInt64()) / totalRewards
+		log.Info().Int64("stakableBalance", stakableBalance).Int64("amount", amount).Msg("restake")
+
 		delegateMsg := &staking.MsgDelegate{
 			DelegatorAddress: address,
 			ValidatorAddress: delegation.ValidatorAddress,
 			Amount:           sdk.NewInt64Coin(chain.NativeDenom, amount),
 		}
+		log.Info().Str("amount", delegateMsg.Amount.String()).Str("delegator", delegateMsg.DelegatorAddress).Str("validator", delegateMsg.ValidatorAddress).Msg("Delegate")
 		msgs[idx+len(delegations.Rewards)] = delegateMsg
 	}
 
@@ -98,21 +100,6 @@ func (bot AutoStakeBot) Restake(ctx context.Context, address string, tolerance i
 	}
 
 	log.Info().Str("data", txResp.Data).Str("logs", txResp.RawLog).Msg("Succesfully sumbitted transaction")
-
-	record, err := bot.Store.GetRecord(address)
-	if err != nil {
-		log.Error().Err(err).Msg("unexpected error in retrieving rewards")
-		return totalRewards, nil
-	}
-
-	record.TotalAutostakedRewards += totalRewards
-	record.LastUpdatedUnixTime = time.Now().Unix()
-
-	err = bot.Store.SetRecord(record)
-	if err != nil {
-		log.Error().Err(err).Str("address", record.Address).Msg("Saving record")
-		return totalRewards, nil
-	}
 
 	return totalRewards, nil
 }

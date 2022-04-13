@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/x/authz"
@@ -169,19 +170,22 @@ func (h Handler) Restake(res http.ResponseWriter, req *http.Request) {
 		RespondWithJSON(res, http.StatusBadRequest, "No address specified")
 		return
 	}
+	var (
+		tolerance int64
+		err       error
+	)
+
+	record, err := h.bot.Store.GetRecord(address)
+	if err != nil {
+		log.Error().Err(err).Str("address", address).Msg("Getting record")
+		RespondWithJSON(res, http.StatusOK, err.Error())
+		return
+	}
 
 	toleranceStr := req.URL.Query().Get("tolerance")
-	var tolerance int64
 	if toleranceStr == "" {
-		record, err := h.bot.Store.GetRecord(address)
-		if err != nil {
-			log.Error().Err(err).Str("address", address).Msg("Getting record")
-			RespondWithJSON(res, http.StatusOK, err.Error())
-			return
-		}
 		tolerance = record.Tolerance
 	} else {
-		var err error
 		tolerance, err = strconv.ParseInt(toleranceStr, 10, 64)
 		if err != nil {
 			RespondWithJSON(res, http.StatusOK, err.Error())
@@ -190,13 +194,24 @@ func (h Handler) Restake(res http.ResponseWriter, req *http.Request) {
 	}
 
 	value, err := h.bot.Restake(context.Background(), address, tolerance)
+	record.LastUpdatedUnixTime = time.Now().Unix()
 	if err != nil {
 		log.Error().Err(err).Str("address", address).Msg("Restaking")
+		record.ErrorLogs = err.Error()
+		if err := h.bot.Store.SetRecord(record); err != nil {
+			log.Error().Err(err).Str("address", address).Msg("Saving record")
+		}
+
 		RespondWithJSON(res, http.StatusOK, err.Error())
 		return
 	}
 
-	RespondWithJSON(res, http.StatusOK, fmt.Sprintf("Successfully restaked %d tokens", value))
+	record.TotalAutostakedRewards += value
+	if err := h.bot.Store.SetRecord(record); err != nil {
+		log.Error().Err(err).Str("address", address).Msg("Saving record")
+	}
+
+	RespondWithJSON(res, http.StatusOK, fmt.Sprintf("Successfully restaked %d tokens\n", value))
 }
 
 // RespondWithJSON provides an auxiliary function to return an HTTP response

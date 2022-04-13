@@ -101,6 +101,8 @@ func (bot AutoStakeBot) StartJobs() error {
 					log.Error().Err(err).Str("address", record.Address).Msg("Saving record")
 				}
 			}
+			log.Info().Int("records", len(records)).Str("frequency", types.Frequency_name[frequency]).Msg("Completed cron job")
+
 		})
 		if err != nil {
 			return err

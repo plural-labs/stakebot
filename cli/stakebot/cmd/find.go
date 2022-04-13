@@ -57,19 +57,14 @@ var findCmd = &cobra.Command{
 			return err
 		}
 
-		lastUpdated := "-"
-		if record.LastUpdatedUnixTime != 0 {
-			lastUpdated = time.Now().Sub(time.UnixMicro(record.LastUpdatedUnixTime)).String()
-		}
-
 		cmd.Printf(`Status:
 Address: %s
 Tolerance: %d
 Frequency: %s
-Last Restaked: %s ago
+Last Restaked: %s
 Total Rewards Restaked: %d
 Errors: %s
-`, record.Address, record.Tolerance, types.Frequency_name[int32(record.Frequency)], lastUpdated, record.TotalAutostakedRewards, record.ErrorLogs)
+`, record.Address, record.Tolerance, types.Frequency_name[int32(record.Frequency)], time.Unix(record.LastUpdatedUnixTime, 0).String(), record.TotalAutostakedRewards, record.ErrorLogs)
 
 		return nil
 	},

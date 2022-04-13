@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/gogo/protobuf/proto"
-	"github.com/rs/zerolog/log"
 	"google.golang.org/grpc"
 
 	codec "github.com/cosmos/cosmos-sdk/codec/types"
@@ -133,7 +132,7 @@ func (c *Client) Send(ctx context.Context, msgs []sdk.Msg, opts ...SendOptionsFn
 	// 	return nil, err
 	// }
 
-	Tx.AuthInfo.Fee = &tx.Fee{GasLimit: 100000}
+	Tx.AuthInfo.Fee = &tx.Fee{GasLimit: 2000000}
 
 	if options.Granter != "" {
 		Tx.AuthInfo.Fee.Granter = options.Granter
@@ -186,8 +185,6 @@ func (c *Client) Send(ctx context.Context, msgs []sdk.Msg, opts ...SendOptionsFn
 	if err != nil {
 		return nil, err
 	}
-
-	log.Info().Interface("messages", msgs).Msg("Broadcasting messages")
 
 	txResp, err := txClient.BroadcastTx(ctx, &tx.BroadcastTxRequest{
 		TxBytes: txBytes,
