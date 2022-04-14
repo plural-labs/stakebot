@@ -55,4 +55,3 @@ func TestRecords(t *testing.T) {
 	_, err = db.GetRecord("address2")
 	require.Equal(t, badger.ErrKeyNotFound, err)
 }
-

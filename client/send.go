@@ -194,6 +194,10 @@ func (c *Client) Send(ctx context.Context, msgs []sdk.Msg, opts ...SendOptionsFn
 		return nil, err
 	}
 
+	if txResp.TxResponse.Code != 0 {
+		return txResp.TxResponse, nil
+	}
+
 	for {
 		select {
 		case <-time.After(time.Millisecond * 100):

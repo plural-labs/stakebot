@@ -30,6 +30,7 @@ func init() {
 		keyringDir     string
 		appName        string
 		keyringBackend string
+		fee            int64
 	)
 	var registerCmd = &cobra.Command{
 		Use:   "register [url] [address]",
@@ -115,9 +116,11 @@ func init() {
 			client := client.New(signer, chains)
 			subCtx, cancel := context.WithTimeout(c.Context(), 1*time.Minute)
 			defer cancel()
-			if err := AuthorizeRestaking(subCtx, client, userAddress, botAddress); err != nil {
+			if err := AuthorizeRestaking(subCtx, client, userAddress, botAddress, sdk.NewCoin(chain.NativeDenom, sdk.NewInt(fee))); err != nil {
 				return err
 			}
+
+			c.Printf("Completed authorization process. Registering address with autostaker\n")
 
 			queryStr := fmt.Sprintf("%s/v1/register?address=%s", url, userAddress.String())
 			if tolerance >= 0 {
@@ -150,11 +153,12 @@ func init() {
 	registerCmd.Flags().StringVar(&appName, "app", "", "Name of the application")
 	registerCmd.Flags().StringVar(&keyringDir, "keyring-dir", "", "Directory where the keyring is stored")
 	registerCmd.Flags().StringVar(&keyringBackend, "keyring-backend", keyring.BackendOS, "Select keyring's backend (os|file|test)")
+	registerCmd.Flags().Int64Var(&fee, "fee", 0, "The fee to submit the transaction")
 
 	rootCmd.AddCommand(registerCmd)
 }
 
-func AuthorizeRestaking(ctx context.Context, c *client.Client, userAddress, botAddress sdk.AccAddress) error {
+func AuthorizeRestaking(ctx context.Context, c *client.Client, userAddress, botAddress sdk.AccAddress, fee sdk.Coin) error {
 	delegateAuth := authz.NewGenericAuthorization(sdk.MsgTypeURL(&staking.MsgDelegate{}))
 	claimAuth := authz.NewGenericAuthorization(sdk.MsgTypeURL(&distribution.MsgWithdrawDelegatorReward{}))
 	inTenYears := time.Now().Add(10 * 365 * 24 * time.Hour)
@@ -178,7 +182,7 @@ func AuthorizeRestaking(ctx context.Context, c *client.Client, userAddress, botA
 		return err
 	}
 
-	resp, err := c.Send(ctx, []sdk.Msg{authorizeDelegationsMsg, authorizeClaimMsg, feegrantMsg}, client.WithFee(sdk.NewCoin("stake", sdk.NewInt(10))))
+	resp, err := c.Send(ctx, []sdk.Msg{authorizeDelegationsMsg, authorizeClaimMsg, feegrantMsg}, client.WithFee(fee))
 	if err != nil {
 		return err
 	}
