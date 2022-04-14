@@ -8,7 +8,6 @@ import (
 
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"github.com/cosmos/cosmos-sdk/types/bech32"
-	badger "github.com/dgraph-io/badger/v3"
 	cron "github.com/robfig/cron/v3"
 	"github.com/rs/zerolog/log"
 
@@ -59,66 +58,26 @@ func New(homeDir string, key keyring.Keyring, chains []types.Chain) (*AutoStakeB
 
 func (bot AutoStakeBot) StartJobs() error {
 	cronStrings := map[int32]string{
-		1: "@hourly",
-		2: "0 */6 * * *", // quarter day
+		1: "* * * * *",
+		2: "@every 6h", // quarter day
 		3: "@daily",
 		4: "@weekly",
 		5: "@monthly",
 	}
 
 	// create a cron job for each frequency
-	for frequency, cronString := range cronStrings {
-		job, err := bot.Store.GetJob(frequency)
-		if err != nil && err != badger.ErrKeyNotFound {
-			return err
-		}
-		if job != nil {
-			// a cron job at this frequency is already running. Perhaps we forgot to stop the previous one
-			log.Info().Str("frequency", types.Frequency_name[frequency]).Msg("Cron job already running")
-			continue
-		}
-
-		id, err := bot.cron.AddFunc(cronString, func() {
-			// We don't cache these as records may have been removed or added between cron jobs
-			records, err := bot.Store.GetRecordsByFrequency(frequency)
-			if err != nil {
-				log.Error().Err(err).Str("frequency", types.Frequency_name[frequency]).Msg("Retrieveing records")
-			}
-
-			for _, record := range records {
-				// TODO: consider using a timeout so we don't get stuck on a single user
-				rewards, err := bot.Restake(context.TODO(), record.Address, record.Tolerance)
-				if err != nil {
-					log.Error().Err(err).Str("address", record.Address).Msg("Restaking")
-					record.ErrorLogs = err.Error()
-					continue
-				}
-				record.TotalAutostakedRewards += rewards
-				record.LastUpdatedUnixTime = time.Now().Unix()
-
-				err = bot.Store.SetRecord(record)
-				if err != nil {
-					log.Error().Err(err).Str("address", record.Address).Msg("Saving record")
-				}
-			}
-			log.Info().Int("records", len(records)).Str("frequency", types.Frequency_name[frequency]).Msg("Completed cron job")
-
-		})
+	for frequency := int32(1); frequency <= 5; frequency++ {
+		id, err := bot.cron.AddFunc(cronStrings[frequency], bot.Job(frequency))
 		if err != nil {
 			return err
 		}
 
-		// persist the job to disk
-		bot.Store.SetJob(&types.Job{
-			Id:        int64(id),
-			Frequency: types.Frequency(frequency),
-		})
-
-		log.Info().Str("frequency", types.Frequency_name[frequency]).Msg("Scheduled cron job")
+		log.Debug().Str("frequency", types.Frequency_name[frequency]).Str("cron string", cronStrings[frequency]).Int64("Id", int64(id)).Msg("Scheduled cron job")
 	}
 
 	// start up the scheduler
 	bot.cron.Start()
+
 	records, err := bot.Store.Len()
 	if err != nil {
 		return err
@@ -127,13 +86,11 @@ func (bot AutoStakeBot) StartJobs() error {
 	return nil
 }
 
-func (bot AutoStakeBot) StopJobs() error {
+func (bot AutoStakeBot) StopJobs() {
 	ctx := bot.cron.Stop()
 
 	// wait for all scheduled jobs to terminate
 	<-ctx.Done()
-
-	return bot.Store.DeleteAllJobs()
 }
 
 func (bot AutoStakeBot) Chains() types.ChainRegistry {
@@ -158,4 +115,33 @@ func (bot AutoStakeBot) Bech32Address(chainID string) (string, error) {
 		panic(err)
 	}
 	return bech32Address, nil
+}
+
+func (bot AutoStakeBot) Job(frequency int32) func() {
+	return func() {
+		log.Info().Int32("frequency", frequency).Msg("Starting cron job")
+		// We don't cache these as records may have been removed or added between cron jobs
+		records, err := bot.Store.GetRecordsByFrequency(frequency)
+		if err != nil {
+			log.Error().Err(err).Str("frequency", types.Frequency_name[frequency]).Msg("Retrieveing records")
+		}
+
+		for _, record := range records {
+			// TODO: consider using a timeout so we don't get stuck on a single user
+			rewards, err := bot.Restake(context.TODO(), record.Address, record.Tolerance)
+			if err != nil {
+				log.Error().Err(err).Str("address", record.Address).Msg("Restaking")
+				record.ErrorLogs = err.Error()
+				continue
+			}
+			record.TotalAutostakedRewards += rewards
+			record.LastUpdatedUnixTime = time.Now().Unix()
+
+			err = bot.Store.SetRecord(record)
+			if err != nil {
+				log.Error().Err(err).Str("address", record.Address).Msg("Saving record")
+			}
+		}
+		log.Info().Int("records", len(records)).Str("frequency", types.Frequency_name[frequency]).Int32("freq", frequency).Msg("Completed cron job")
+	}
 }

@@ -1,7 +1,6 @@
 package store
 
 import (
-	"fmt"
 	"path/filepath"
 
 	badger "github.com/dgraph-io/badger/v3"
@@ -15,7 +14,6 @@ const (
 	defaultStoreName = "store.db"
 
 	addressPrefix = byte(0x00)
-	cronJobs      = byte(0x01)
 )
 
 type Store struct {
@@ -31,50 +29,6 @@ func New(dir string) (*Store, error) {
 	return &Store{
 		db: db,
 	}, nil
-}
-
-func (s Store) SetJob(job *types.Job) error {
-	return s.db.Update(func(txn *badger.Txn) error {
-		bz, err := proto.Marshal(job)
-		if err != nil {
-			return err
-		}
-		return txn.Set(jobKey(int32(job.Frequency)), bz)
-	})
-}
-
-func (s Store) GetJob(frequency int32) (*types.Job, error) {
-	job := new(types.Job)
-	err := s.db.View(func(txn *badger.Txn) error {
-		item, err := txn.Get(jobKey(frequency))
-		if err != nil {
-			return err
-		}
-
-		// unmarshal value
-		return item.Value(func(val []byte) error {
-			return proto.Unmarshal(val, job)
-		})
-	})
-	if err != nil {
-		return nil, err
-	}
-	return job, nil
-}
-
-func (s Store) DeleteAllJobs() error {
-	return s.db.Update(func(txn *badger.Txn) error {
-		opts := badger.DefaultIteratorOptions
-		it := txn.NewIterator(opts)
-		defer it.Close()
-		prefix := []byte{cronJobs}
-		for it.Seek(prefix); it.Valid(); it.Next() {
-			item := it.Item()
-			fmt.Printf("deleted key %s", string(item.Key()))
-			return txn.Delete(item.Key())
-		}
-		return nil
-	})
 }
 
 func (s Store) SetRecord(record *types.Record) error {
@@ -131,7 +85,7 @@ func (s Store) DeleteRecord(address string) error {
 		opts.PrefetchValues = false
 		it := txn.NewIterator(opts)
 		defer it.Close()
-		for it.Seek([]byte{cronJobs}); it.Valid(); it.Next() {
+		for it.Seek([]byte{addressPrefix}); it.Valid(); it.Next() {
 			err := txn.Delete(it.Item().Key())
 			if err != nil {
 				return err
@@ -191,14 +145,6 @@ func (s Store) Len() (int, error) {
 
 func key(frequency int32, address string) []byte {
 	key, err := orderedcode.Append([]byte{addressPrefix}, int64(frequency), address)
-	if err != nil {
-		panic(err)
-	}
-	return key
-}
-
-func jobKey(frequency int32) []byte {
-	key, err := orderedcode.Append([]byte{cronJobs}, int64(frequency))
 	if err != nil {
 		panic(err)
 	}

@@ -46,7 +46,7 @@ Write this mnemonic phrase in a safe place
 		if err := initConfig(); err != nil {
 			return err
 		}
-		cmd.Printf("Initialized config\n")
+		cmd.Printf("\nInitialized config in ~/%s\n", defaultDir)
 		return nil
 	},
 }
@@ -57,7 +57,7 @@ func getKeyring() (keyring.Keyring, error) {
 		return nil, err
 	}
 	filePath := filepath.Join(homeDir, defaultDir)
-	kb, err := keyring.New(keyName, keyring.BackendOS, filePath, os.Stdin)
+	kb, err := keyring.New(keyName, keyring.BackendTest, filePath, os.Stdin)
 	if err != nil {
 		return nil, err
 	}
@@ -102,8 +102,11 @@ func initConfig() error {
 		return err
 	}
 	rootDir := filepath.Join(homeDir, defaultDir)
-	if err := os.Mkdir(rootDir, 0700); err != nil {
-		return err
+	_, err = os.Stat(rootDir)
+	if os.IsNotExist(err) {
+		if err := os.Mkdir(rootDir, 0700); err != nil {
+			return err
+		}
 	}
 	filePath := filepath.Join(rootDir, defaultConfigFileName)
 	_, err = os.Stat(filePath)

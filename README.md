@@ -8,7 +8,7 @@ Autostaker leverages the `authz` and `feegrant` modules. User accounts must gran
 
 ### Staking Frequency
 
-The server deploys cron jobs which iteratively claim the accounts rewards, then by calculating transaction fees, delegates the available tokens to the accounts validators, maintaing parity with the percentage delegated. It delegates with a safety margin known as `tolerance` so that future transactions have sufficient funds. By default, the autostaker operates on a weekly cadence but this can be adjusted to one of following:
+The server deploys cron jobs which iteratively claim the accounts rewards, then by calculating transaction fees, delegates the available balance of native tokens to the accounts validators, maintaing parity with the percentage delegated. It delegates with a safety margin known as `tolerance` so that future transactions have sufficient funds. The autostaker has defaults per chain for `frequency` and `tolerance` but the frequency this can be adjusted to one of following:
 
 1. `hourly`
 2. `quarterday`
@@ -58,7 +58,7 @@ To set up autostaking via the REST server:
 3. After granting access to perform the messages and cover the fees, register your account as `/v1/register?address=<account>&frequeny=<frequency>&tolerance=<tolerance>` i.e. `/v1/register?address=cosmos1vhpsuaxg51gvvzwyhqejvwfved5ywa3n6vl4ld`. This automatically enables autostaking so long as the chain, in this case `cosmoshub-4` is supported. If you don't add a `frequency` or `tolerance`, reasonable defaults will be chosen from the server settings.
 4. If you want to manually trigger a restake you can also run: `/v1/restake?address=<address>`.
 
-## API
+## API Reference
 
 - `/v1/register?address=<account>`: Registers an account to the autostakers KV store. Returns an error if the account does not exist or the autostaker doesn't support that chain.
 - `/v1/restake?address=<account>`: Manu
