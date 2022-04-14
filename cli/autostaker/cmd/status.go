@@ -42,6 +42,13 @@ var statusCmd = &cobra.Command{
 		var record types.Record
 		err = json.Unmarshal(respBytes, &record)
 		if err != nil {
+			// If the record doesn't exist we need to still catch the message
+			var message string
+			err = json.Unmarshal(respBytes, &message)
+			if err != nil {
+				return err
+			}
+			c.Printf("%s\n", message)
 			return err
 		}
 

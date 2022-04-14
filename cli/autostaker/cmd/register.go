@@ -113,7 +113,9 @@ func init() {
 			c.Printf("Authorizing autostaking bot (%s) with address %s on %s\n", botAddress.String(), userAddress.String(), chain.Id)
 
 			client := client.New(signer, chains)
-			if err := AuthorizeRestaking(c.Context(), client, userAddress, botAddress); err != nil {
+			subCtx, cancel := context.WithTimeout(c.Context(), 1*time.Minute)
+			defer cancel()
+			if err := AuthorizeRestaking(subCtx, client, userAddress, botAddress); err != nil {
 				return err
 			}
 

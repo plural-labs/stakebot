@@ -73,6 +73,7 @@ func (h Handler) ChainById(res http.ResponseWriter, req *http.Request) {
 }
 
 func (h Handler) RegisterAddress(res http.ResponseWriter, req *http.Request) {
+	log.Info().Msg("Registering new address")
 	address := req.URL.Query().Get("address")
 	if address == "" {
 		RespondWithJSON(res, http.StatusOK, "No address specified")
@@ -121,7 +122,7 @@ func (h Handler) RegisterAddress(res http.ResponseWriter, req *http.Request) {
 		panic(err)
 	}
 
-	valid, err := ValidateAddress(context.Background(), conn, address, bech32Address)
+	valid, err := ValidateAddress(req.Context(), conn, address, bech32Address)
 	if err != nil {
 		log.Error().Err(err).Msg("Registering address")
 	}
