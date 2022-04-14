@@ -58,7 +58,7 @@ func New(homeDir string, key keyring.Keyring, chains []types.Chain) (*AutoStakeB
 
 func (bot AutoStakeBot) StartJobs() error {
 	cronStrings := map[int32]string{
-		1: "* * * * *",
+		1: "@hourly",
 		2: "@every 6h", // quarter day
 		3: "@daily",
 		4: "@weekly",
