@@ -35,6 +35,9 @@ func init() {
 	var registerCmd = &cobra.Command{
 		Use:   "register [url] [address]",
 		Short: "Set up an account with a autostaking bot",
+		Example: `autostaker register https://autostaker.plural.to
+cosmos147l494tccpk7ecr8vmqc67y542tl90659dgvda 
+--app gaia --keyring-backend os --frequency hourly --fee 10`,
 		Args:  cobra.ExactArgs(2),
 		RunE: func(c *cobra.Command, args []string) error {
 			_, err := url.Parse(args[0])

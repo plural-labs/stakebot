@@ -16,6 +16,8 @@ func init() {
 	var restakeCmd = &cobra.Command{
 		Use:   "restake [url] [address]",
 		Short: "manually restakes the tokens of a registered address",
+		Example: `autostaker restake https://autostaker.plural.to
+cosmos147l494tccpk7ecr8vmqc67y542tl90659dgvda --tolerance 10000`,
 		Args:  cobra.ExactArgs(2),
 		RunE: func(c *cobra.Command, args []string) error {
 			userAddress, err := sdk.AccAddressFromBech32(args[1])
