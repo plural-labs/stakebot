@@ -12,6 +12,7 @@ import (
 
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/cosmos/cosmos-sdk/types/bech32"
 	"github.com/cosmos/cosmos-sdk/x/authz"
 
 	distribution "github.com/cosmos/cosmos-sdk/x/distribution/types"
@@ -38,7 +39,7 @@ func init() {
 		Example: `autostaker register https://autostaker.plural.to
 cosmos147l494tccpk7ecr8vmqc67y542tl90659dgvda 
 --app gaia --keyring-backend os --frequency hourly --fee 10`,
-		Args:  cobra.ExactArgs(2),
+		Args: cobra.ExactArgs(2),
 		RunE: func(c *cobra.Command, args []string) error {
 			_, err := url.Parse(args[0])
 			if err != nil {
@@ -46,10 +47,12 @@ cosmos147l494tccpk7ecr8vmqc67y542tl90659dgvda
 			}
 			url := args[0]
 
-			userAddress, err := sdk.AccAddressFromBech32(args[1])
+			_, bz, err := bech32.DecodeAndConvert(args[1])
 			if err != nil {
 				return err
 			}
+
+			userAddress := sdk.AccAddress(bz)
 
 			if keyringDir == "" {
 				keyringDir, err = os.UserHomeDir()
@@ -109,10 +112,15 @@ cosmos147l494tccpk7ecr8vmqc67y542tl90659dgvda
 			if err != nil {
 				return err
 			}
-			botAddress, err := sdk.AccAddressFromBech32(address)
+
+			_, bz, err = bech32.DecodeAndConvert(address)
+			if err != nil {
+				return err
+			}
 			if err != nil {
 				return fmt.Errorf("Autostaking bot provided incorrect address %s, %w", address, err)
 			}
+			botAddress := sdk.AccAddress(bz)
 
 			c.Printf("Authorizing autostaking bot (%s) with address %s on %s\n", botAddress.String(), userAddress.String(), chain.Id)
 
