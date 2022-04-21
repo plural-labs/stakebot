@@ -47,13 +47,6 @@ cosmos147l494tccpk7ecr8vmqc67y542tl90659dgvda
 			}
 			url := args[0]
 
-			_, bz, err := bech32.DecodeAndConvert(args[1])
-			if err != nil {
-				return err
-			}
-
-			userAddress := sdk.AccAddress(bz)
-
 			if keyringDir == "" {
 				keyringDir, err = os.UserHomeDir()
 				if err != nil {
@@ -63,10 +56,6 @@ cosmos147l494tccpk7ecr8vmqc67y542tl90659dgvda
 
 			signer, err := keyring.New(appName, keyringBackend, keyringDir, os.Stdin)
 			if err != nil {
-				return err
-			}
-
-			if _, err := signer.KeyByAddress(userAddress); err != nil {
 				return err
 			}
 
@@ -91,6 +80,20 @@ cosmos147l494tccpk7ecr8vmqc67y542tl90659dgvda
 			chain, err := chains.FindChainFromAddress(args[1])
 			if err != nil {
 				return fmt.Errorf("autostaker bot does not support any chain with the address %s", args[1])
+			}
+
+			// set the config to match the chain's prefix
+			sdk.GetConfig().SetBech32PrefixForAccount(chain.Prefix, chain.Prefix+"pub")
+
+			_, bz, err := bech32.DecodeAndConvert(args[1])
+			if err != nil {
+				return err
+			}
+			userAddress := sdk.AccAddress(bz)
+
+			// check that the key exists
+			if _, err := signer.KeyByAddress(userAddress); err != nil {
+				return err
 			}
 
 			addressResp, err := http.Get(fmt.Sprintf("%s/v1/address?chain_id=%s", url, chain.Id))

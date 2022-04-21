@@ -42,12 +42,12 @@ func (c *Client) Send(ctx context.Context, msgs []sdk.Msg, opts ...SendOptionsFn
 	for idx, msg := range msgs {
 		err := msg.ValidateBasic()
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("invalid msg (idx: %d): %w", idx, err)
 		}
 
 		anyMsgs[idx], err = codec.NewAnyWithValue(msg)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("msg (idx: %d): %w", idx, err)
 		}
 	}
 
