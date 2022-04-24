@@ -7,7 +7,7 @@ import (
 	"github.com/google/orderedcode"
 	"google.golang.org/protobuf/proto"
 
-	"github.com/plural-labs/autostaker/types"
+	"github.com/plural-labs/stakebot/types"
 )
 
 const (

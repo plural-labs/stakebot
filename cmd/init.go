@@ -7,15 +7,15 @@ import (
 
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"github.com/cosmos/go-bip39"
-	"github.com/plural-labs/autostaker/types"
+	"github.com/plural-labs/stakebot/types"
 	"github.com/spf13/cobra"
 )
 
 const (
 	mnemonicEntropySize   = 256
-	keyName               = "autostaker"
+	keyName               = "stakebot"
 	keySigningAlgorithm   = "secp256k1"
-	defaultDir            = ".autostaker"
+	defaultDir            = ".stakebot"
 	defaultConfigFileName = "config.toml"
 )
 
@@ -25,10 +25,10 @@ func init() {
 
 var initCmd = &cobra.Command{
 	Use:   "init",
-	Short: "Initialize an instance of the autostaker",
+	Short: "Initialize an instance of the stakebot",
 	Long:  "Creates a config, keys and a database needed to run the server",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		cmd.Printf("Initializing autostaker account.\n")
+		cmd.Printf("Initializing stakebot account.\n")
 		keyInfo, mnemonic, err := initAccount()
 		if err != nil {
 			return err
@@ -36,7 +36,7 @@ var initCmd = &cobra.Command{
 
 		if keyInfo != nil {
 			cmd.Printf(`
-Generated a new private key for the autostaker server
+Generated a new private key for the stakebot server
 Pubkey: %X
 Mnemonic: %v
 

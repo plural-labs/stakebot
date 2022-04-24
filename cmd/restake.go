@@ -5,28 +5,45 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strings"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/plural-labs/stakebot/types"
 	"github.com/spf13/cobra"
 )
 
 func init() {
 	var tolerance int64
 	var restakeCmd = &cobra.Command{
-		Use:   "restake [url] [address]",
+		Use:   "restake [address]",
 		Short: "manually restakes the tokens of a registered address",
-		Example: `autostaker restake https://autostaker.plural.to
-cosmos147l494tccpk7ecr8vmqc67y542tl90659dgvda --tolerance 10000`,
-		Args: cobra.ExactArgs(2),
+		Args:  cobra.ExactArgs(1),
 		RunE: func(c *cobra.Command, args []string) error {
-			userAddress, err := sdk.AccAddressFromBech32(args[1])
+			homeDir, err := os.UserHomeDir()
 			if err != nil {
 				return err
 			}
 
-			addr := args[0]
-			if !strings.Contains(addr, "://") {
+			filePath := filepath.Join(homeDir, defaultDir, defaultConfigFileName)
+			config, err := types.LoadConfig(filePath)
+			if err != nil {
+				return err
+			}
+
+			userAddress, err := sdk.AccAddressFromBech32(args[0])
+			if err != nil {
+				return err
+			}
+
+			_, err = config.Chains.FindChainFromAddress(userAddress.String())
+			if err != nil {
+				return fmt.Errorf("autostakebot does not support chain with address %s", userAddress.String())
+			}
+
+			addr := config.ListenAddr
+			if !strings.Contains(config.ListenAddr, "://") {
 				addr = "http://" + addr
 			}
 

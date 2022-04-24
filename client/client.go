@@ -3,7 +3,7 @@ package client
 import (
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 
-	"github.com/plural-labs/autostaker/types"
+	"github.com/plural-labs/stakebot/types"
 )
 
 type Client struct {

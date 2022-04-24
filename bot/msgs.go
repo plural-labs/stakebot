@@ -12,7 +12,7 @@ import (
 	"github.com/rs/zerolog/log"
 	"google.golang.org/grpc"
 
-	"github.com/plural-labs/autostaker/client"
+	"github.com/plural-labs/stakebot/client"
 )
 
 // Restake queries an addresses' delegations. It executes a claim call on all delegations. It then calculates

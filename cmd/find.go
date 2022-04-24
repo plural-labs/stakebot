@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/plural-labs/autostaker/types"
+	"github.com/plural-labs/stakebot/types"
 	"github.com/spf13/cobra"
 )
 

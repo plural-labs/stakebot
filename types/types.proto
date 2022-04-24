@@ -1,5 +1,5 @@
 syntax = "proto3";
-option go_package = "github.com/plural-labs/autostaker/types";
+option go_package = "github.com/plural-labs/stakebot/types";
 
 message Record {
     string address = 1;

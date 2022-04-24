@@ -4,8 +4,8 @@ import (
 	"testing"
 
 	badger "github.com/dgraph-io/badger/v3"
-	"github.com/plural-labs/autostaker/store"
-	"github.com/plural-labs/autostaker/types"
+	"github.com/plural-labs/stakebot/store"
+	"github.com/plural-labs/stakebot/types"
 	"github.com/stretchr/testify/require"
 )
 

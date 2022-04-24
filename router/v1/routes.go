@@ -19,8 +19,8 @@ import (
 	"github.com/rs/zerolog/log"
 	"google.golang.org/grpc"
 
-	"github.com/plural-labs/autostaker/bot"
-	"github.com/plural-labs/autostaker/types"
+	"github.com/plural-labs/stakebot/bot"
+	"github.com/plural-labs/stakebot/types"
 )
 
 func RegisterRoutes(router *mux.Router, bot *bot.AutoStakeBot) {
@@ -237,7 +237,7 @@ func ValidateAddress(ctx context.Context, conn *grpc.ClientConn, address, author
 		return false, fmt.Errorf("feegrant allowance query: %w", err)
 	}
 	if resp.Allowance == nil {
-		return false, fmt.Errorf("address %s is not covering the fees for autostaker (%s)", address, authority)
+		return false, fmt.Errorf("address %s is not covering the fees for stakebot (%s)", address, authority)
 	}
 
 	allowance := &feegrant.AllowedMsgAllowance{}
@@ -253,7 +253,7 @@ func ValidateAddress(ctx context.Context, conn *grpc.ClientConn, address, author
 		}
 	}
 	if !contains {
-		return false, fmt.Errorf("address %s does not cover authz.MsgExec fees for autostaker (%s)", address, authority)
+		return false, fmt.Errorf("address %s does not cover authz.MsgExec fees for stakebot (%s)", address, authority)
 	}
 
 	authzClient := authz.NewQueryClient(conn)
@@ -266,7 +266,7 @@ func ValidateAddress(ctx context.Context, conn *grpc.ClientConn, address, author
 		return false, fmt.Errorf("authorization MsgDelegate query: %w", err)
 	}
 	if len(grantsResp.Grants) == 0 {
-		return false, fmt.Errorf("address %s must authorize the autostaker (%s) to MsgDelegate", address, authority)
+		return false, fmt.Errorf("address %s must authorize the stakebot (%s) to MsgDelegate", address, authority)
 	}
 
 	grantsResp, err = authzClient.Grants(ctx, &authz.QueryGrantsRequest{
@@ -278,7 +278,7 @@ func ValidateAddress(ctx context.Context, conn *grpc.ClientConn, address, author
 		return false, fmt.Errorf("authorization MsgWithdrawDelegatorReward query: %w", err)
 	}
 	if len(grantsResp.Grants) == 0 {
-		return false, fmt.Errorf("grants %s must authorize the autostaker (%s) to MsgWithdrawDelegatorReward", address, authority)
+		return false, fmt.Errorf("grants %s must authorize the stakebot (%s) to MsgWithdrawDelegatorReward", address, authority)
 	}
 
 	return true, nil

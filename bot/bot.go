@@ -11,9 +11,9 @@ import (
 	cron "github.com/robfig/cron/v3"
 	"github.com/rs/zerolog/log"
 
-	"github.com/plural-labs/autostaker/client"
-	"github.com/plural-labs/autostaker/store"
-	"github.com/plural-labs/autostaker/types"
+	"github.com/plural-labs/stakebot/client"
+	"github.com/plural-labs/stakebot/store"
+	"github.com/plural-labs/stakebot/types"
 )
 
 type AutoStakeBot struct {

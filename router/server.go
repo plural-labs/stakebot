@@ -8,7 +8,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/rs/zerolog/log"
 
-	"github.com/plural-labs/autostaker/bot"
+	"github.com/plural-labs/stakebot/bot"
 )
 
 func Serve(ctx context.Context, listenAddr string, stakebot *bot.AutoStakeBot) error {

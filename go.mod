@@ -1,4 +1,4 @@
-module github.com/plural-labs/autostaker
+module github.com/plural-labs/stakebot
 
 go 1.17
 

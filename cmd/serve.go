@@ -8,9 +8,9 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/plural-labs/autostaker/bot"
-	"github.com/plural-labs/autostaker/router"
-	"github.com/plural-labs/autostaker/types"
+	"github.com/plural-labs/stakebot/bot"
+	"github.com/plural-labs/stakebot/router"
+	"github.com/plural-labs/stakebot/types"
 )
 
 func init() {
@@ -19,7 +19,7 @@ func init() {
 
 var serveCmd = &cobra.Command{
 	Use:   "serve",
-	Short: "Run the autostaker server",
+	Short: "Run the stakebot server",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		homeDir, err := os.UserHomeDir()
 		if err != nil {
