@@ -21,6 +21,7 @@ func DefaultChains() []Chain {
 	return []Chain{
 		{
 			GRPC:             "localhost:9090",
+			RPC:              "localhost:26657",
 			Id:               "cosmoshub-4",
 			Prefix:           "cosmos",
 			DefaultFrequency: int32(Frequency_DAILY),
@@ -50,6 +51,7 @@ func LoadConfig(file string) (Config, error) {
 
 type Chain struct {
 	GRPC             string `toml:"grpc"`
+	RPC              string `toml:"rpc"`
 	Id               string `toml:"chain_id"`
 	Prefix           string `toml:"chain_prefix"`
 	DefaultFrequency int32  `toml:"default_interval"`
