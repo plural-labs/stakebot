@@ -1,6 +1,6 @@
 # Stakebot
 
-The stakebot is a server written in Golang for automated multi-chain staking, specifically claiming and delegating on Cosmos SDK chains
+Stakebot is a server written in Golang for automated multi-chain staking, specifically claiming and delegating on Cosmos SDK chains. For the client implementations look at the [autostaker](https://github.com/plural-labs/autostaker).
 
 ## Protocol
 
