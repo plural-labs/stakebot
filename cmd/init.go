@@ -70,6 +70,9 @@ func initAccount() (keyring.Info, string, error) {
 
 	// Check to see if the account already exists
 	info, err := kb.Key(keyName)
+	if err != nil {
+		return nil, "", err
+	}
 	if info != nil {
 		fmt.Printf("Account already exists\n")
 		return nil, "", nil
