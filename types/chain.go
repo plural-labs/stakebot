@@ -36,7 +36,7 @@ func DefaultChains() []Chain {
 func (cfg Config) Save(file string) error {
 	f, err := os.Create(file)
 	if err != nil {
-		return fmt.Errorf("failed to save manifest file %q: %w", file, err)
+		return fmt.Errorf("failed to save config file %q: %w", file, err)
 	}
 	return toml.NewEncoder(f).Encode(cfg)
 }
