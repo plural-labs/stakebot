@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
+	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/bech32"
 	cron "github.com/robfig/cron/v3"
 	"github.com/rs/zerolog/log"
@@ -127,8 +128,13 @@ func (bot AutoStakeBot) Job(frequency int32) func() {
 		}
 
 		for _, record := range records {
+			chain, err := bot.chains.FindChainFromAddress(record.Address)
+			if err != nil {
+				log.Error().Err(err).Str("address", record.Address).Msg("Finding chain")
+			}
+
 			// TODO: consider using a timeout so we don't get stuck on a single user
-			rewards, err := bot.Restake(context.TODO(), record.Address, record.Tolerance)
+			rewards, err := bot.Restake(context.TODO(), record.Address, record.Tolerance, sdk.NewInt64Coin(chain.NativeDenom, chain.RestakeFee))
 			if err != nil {
 				log.Error().Err(err).Str("address", record.Address).Msg("Restaking")
 				record.ErrorLogs = err.Error()

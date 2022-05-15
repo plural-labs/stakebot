@@ -194,7 +194,12 @@ func (h Handler) Restake(res http.ResponseWriter, req *http.Request) {
 		}
 	}
 
-	value, err := h.bot.Restake(context.Background(), address, tolerance)
+	chain, err := h.bot.Chains().FindChainFromAddress(address)
+	if err != nil {
+		RespondWithJSON(res, http.StatusOK, fmt.Sprintf("No chain saved corresponds with the address %s", address))
+	}
+
+	value, err := h.bot.Restake(context.Background(), address, tolerance, sdk.NewInt64Coin(chain.NativeDenom, chain.RestakeFee))
 	record.LastUpdatedUnixTime = time.Now().Unix()
 	if err != nil {
 		log.Error().Err(err).Str("address", address).Msg("Restaking")

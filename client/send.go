@@ -9,11 +9,13 @@ import (
 	"github.com/gogo/protobuf/proto"
 	"google.golang.org/grpc"
 
-	codec "github.com/cosmos/cosmos-sdk/codec/types"
+	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
+	crypto "github.com/cosmos/cosmos-sdk/crypto/codec"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/tx"
 	"github.com/cosmos/cosmos-sdk/types/tx/signing"
 	auth "github.com/cosmos/cosmos-sdk/x/auth/types"
+	vesting "github.com/cosmos/cosmos-sdk/x/auth/vesting/types"
 )
 
 func WithGranter(granter string) SendOptionsFn {
@@ -38,14 +40,14 @@ func WithPubKey() SendOptionsFn {
 }
 
 func (c *Client) Send(ctx context.Context, msgs []sdk.Msg, opts ...SendOptionsFn) (*sdk.TxResponse, error) {
-	anyMsgs := make([]*codec.Any, len(msgs))
+	anyMsgs := make([]*codectypes.Any, len(msgs))
 	for idx, msg := range msgs {
 		err := msg.ValidateBasic()
 		if err != nil {
 			return nil, fmt.Errorf("invalid msg (idx: %d): %w", idx, err)
 		}
 
-		anyMsgs[idx], err = codec.NewAnyWithValue(msg)
+		anyMsgs[idx], err = codectypes.NewAnyWithValue(msg)
 		if err != nil {
 			return nil, fmt.Errorf("msg (idx: %d): %w", idx, err)
 		}
@@ -73,6 +75,18 @@ func (c *Client) Send(ctx context.Context, msgs []sdk.Msg, opts ...SendOptionsFn
 		}
 	}
 
+	registry := codectypes.NewInterfaceRegistry()
+	auth.RegisterInterfaces(registry)
+	registry.RegisterImplementations((*auth.AccountI)(nil),
+		&auth.BaseAccount{},
+		&vesting.BaseVestingAccount{},
+		&vesting.DelayedVestingAccount{},
+		&vesting.ContinuousVestingAccount{},
+		&vesting.PeriodicVestingAccount{},
+		&vesting.PermanentLockedAccount{},
+	)
+	crypto.RegisterInterfaces(registry)
+
 	conn, err := grpc.Dial(
 		chain.GRPC,
 		grpc.WithInsecure(),
@@ -90,10 +104,11 @@ func (c *Client) Send(ctx context.Context, msgs []sdk.Msg, opts ...SendOptionsFn
 		if err != nil {
 			return nil, fmt.Errorf("retrieving account info for %d: %w", signer, err)
 		}
-		account := &auth.BaseAccount{}
-		err = proto.Unmarshal(acc.Account.Value, account)
+
+		var account auth.AccountI
+		err = registry.UnpackAny(acc.Account, &account)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("unmarshal account: %w", err)
 		}
 
 		signerInfos[idx] = &tx.SignerInfo{
@@ -102,18 +117,18 @@ func (c *Client) Send(ctx context.Context, msgs []sdk.Msg, opts ...SendOptionsFn
 					Single: &tx.ModeInfo_Single{Mode: signing.SignMode_SIGN_MODE_DIRECT},
 				},
 			},
-			Sequence: account.Sequence,
+			Sequence: account.GetSequence(),
 		}
 		if options.PubKey {
 			info, _ := c.signer.KeyByAddress(signer)
 			pk := info.GetPubKey()
-			pkAny, err := codec.NewAnyWithValue(pk)
+			pkAny, err := codectypes.NewAnyWithValue(pk)
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("get pub key: %w", err)
 			}
 			signerInfos[idx].PublicKey = pkAny
 		}
-		accountNumbers[idx] = account.AccountNumber
+		accountNumbers[idx] = account.GetAccountNumber()
 	}
 
 	Tx.AuthInfo.SignerInfos = signerInfos
@@ -148,7 +163,7 @@ func (c *Client) Send(ctx context.Context, msgs []sdk.Msg, opts ...SendOptionsFn
 	}
 	authInfoBytes, err := Tx.AuthInfo.Marshal()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("marshal auth info: %w", err)
 	}
 	signatures := make([][]byte, len(signers))
 	for idx, signer := range signers {

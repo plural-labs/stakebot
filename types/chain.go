@@ -28,6 +28,7 @@ func DefaultChains() []Chain {
 			DefaultTolerance: 1000000,
 			NativeDenom:      "uatom",
 			AppName:          "gaia",
+			RestakeFee:       5000,
 		},
 	}
 }
@@ -58,6 +59,7 @@ type Chain struct {
 	DefaultTolerance int64  `toml:"default_tolerance"`
 	NativeDenom      string `toml:"native_denom"`
 	AppName          string `toml:"app_name"`
+	RestakeFee       int64  `toml:"restake_fee"`
 }
 
 type ChainRegistry []Chain

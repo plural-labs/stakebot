@@ -21,7 +21,7 @@ import (
 // This is a blocking function.
 // NOTE: This only allows staking of the native token. I haven't seen a chain yet where you can stake other tokens
 // but correct me if I'm wrong.
-func (bot AutoStakeBot) Restake(ctx context.Context, address string, tolerance int64) (int64, error) {
+func (bot AutoStakeBot) Restake(ctx context.Context, address string, tolerance int64, fee sdk.Coin) (int64, error) {
 	chain, err := bot.chains.FindChainFromAddress(address)
 	if err != nil {
 		return 0, err
@@ -90,7 +90,7 @@ func (bot AutoStakeBot) Restake(ctx context.Context, address string, tolerance i
 	log.Info().Str("botAddress", botBech32Addr).Str("userAddress", address).Msg("Prepared messages")
 
 	// TODO: Might be helpful to catch the results and log them to INFO for debugging
-	txResp, err := bot.client.Send(ctx, []sdk.Msg{&authzMsg}, client.WithGranter(address), client.WithPubKey())
+	txResp, err := bot.client.Send(ctx, []sdk.Msg{&authzMsg}, client.WithGranter(address), client.WithPubKey(), client.WithFee(fee))
 	if err != nil {
 		return 0, fmt.Errorf("error sending messages: %w", err)
 	}
