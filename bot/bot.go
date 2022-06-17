@@ -142,11 +142,13 @@ func (bot AutoStakeBot) Job(frequency int32) func() {
 			}
 			record.TotalAutostakedRewards += rewards
 			record.LastUpdatedUnixTime = time.Now().Unix()
+			record.ErrorLogs = ""
 
 			err = bot.Store.SetRecord(record)
 			if err != nil {
 				log.Error().Err(err).Str("address", record.Address).Msg("Saving record")
 			}
+
 		}
 		log.Info().Int("records", len(records)).Str("frequency", types.Frequency_name[frequency]).Int32("freq", frequency).Msg("Completed cron job")
 	}

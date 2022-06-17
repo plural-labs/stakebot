@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"github.com/cosmos/go-bip39"
@@ -70,8 +71,8 @@ func initAccount() (keyring.Info, string, error) {
 
 	// Check to see if the account already exists
 	info, err := kb.Key(keyName)
-	if err != nil {
-		return nil, "", err
+	if err != nil && !strings.Contains(err.Error(), "key not found") {
+		return nil, "", fmt.Errorf("searching for prior key: %w", err)
 	}
 	if info != nil {
 		fmt.Printf("Account already exists\n")
